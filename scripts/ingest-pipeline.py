@@ -20,7 +20,7 @@ reddit = praw.Reddit(
     user_agent=user_agent,
 )
 
-def fetch_posts(reddit, limit=2000):
+def fetch_posts(reddit, limit=1000):
     """Fetch top posts from r/diy subreddit with rate limiting."""
     print(f"Fetching top {limit} posts from r/diy...")
     posts_list = []
@@ -37,10 +37,14 @@ def fetch_posts(reddit, limit=2000):
 
 def fetch_comments(submission, limit=10):
     """Fetch top comments for a given submission."""
-    # Expand "MoreComments" objects to access all comments
-    submission.comments.replace_more(limit=0)
-    # Slice to get only the top N comments
-    return list(submission.comments[:limit])
+    try:
+        # Expand "MoreComments" objects to access all comments with threshold filtering
+        submission.comments.replace_more(limit=0, threshold=3)
+        # Use .list() to get flattened comment structure and slice to limit
+        return list(submission.comments.list()[:limit])
+    except Exception as e:
+        print(f"Error fetching comments for post {submission.id}: {e}")
+        return []
 
 def clean_text(text):
     """Clean text by removing URLs, markdown formatting, and normalizing whitespace."""
@@ -66,7 +70,7 @@ def clean_text(text):
 
 def build_dataset(posts_list, comment_limit=10):
     """Build structured dataset from posts and their comments."""
-    print("Building dataset from posts and comments...")
+    print("Building dataset...")
     dataset = []
     
     for i, submission in enumerate(posts_list):
@@ -97,13 +101,35 @@ def build_dataset(posts_list, comment_limit=10):
     print(f"Dataset built with {len(dataset)} posts")
     return dataset
 
-def save_json(dataset, filename="reddit_data.json"):
-    """Save dataset to JSON file."""
-    print(f"Saving dataset to {filename}...")
+def save_json(dataset, filename="reddit_data.json", batch_size=100):
+    """Save dataset to JSON file in batches."""
+    print(f"Saving dataset to {filename} in batches of {batch_size}...")
     
+    # Initialize JSON file with opening bracket
     with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(dataset, f, indent=2, ensure_ascii=False)
-    print(f"Dataset saved to {filename}")
+        f.write('[\n')
+    
+    # Process dataset in batches
+    for i in range(0, len(dataset), batch_size):
+        batch = dataset[i:i + batch_size]
+        
+        # Append batch to file
+        with open(filename, 'a', encoding='utf-8') as f:
+            for j, post in enumerate(batch):
+                # Add comma after each post except the last one in the entire dataset
+                is_last_post = (i + j == len(dataset) - 1)
+                json.dump(post, f, indent=2, ensure_ascii=False)
+                if not is_last_post:
+                    f.write(',')
+                f.write('\n')
+        
+        print(f"Saved batch {i//batch_size + 1}/{(len(dataset) + batch_size - 1)//batch_size} ({len(batch)} posts)")
+    
+    # Close JSON array
+    with open(filename, 'a', encoding='utf-8') as f:
+        f.write(']')
+    
+    print(f"Dataset saved to {filename} ({len(dataset)} total posts)")
 
 def main():
     """Main function to orchestrate the Reddit data pipeline."""
@@ -119,7 +145,7 @@ def main():
         return
     
     # Fetch posts
-    posts_list = fetch_posts(reddit, limit=2000)
+    posts_list = fetch_posts(reddit, limit=1000)
     
     # Build dataset
     dataset = build_dataset(posts_list, comment_limit=10)
