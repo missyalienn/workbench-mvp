@@ -13,11 +13,9 @@ load_dotenv('.env')
 client_id = os.getenv('REDDIT_CLIENT_ID')
 client_secret = os.getenv('REDDIT_CLIENT_SECRET')
 user_agent = os.getenv('REDDIT_USER_AGENT') or "TestScript/1.0 by /u/yourusername"
-
-#print(f"Client ID: {client_id}")
 print(f"User Agent: {user_agent}")
 
-# authenticate with Reddit
+# Authenticate with Reddit
 reddit = praw.Reddit(
     client_id=client_id,
     client_secret=client_secret,

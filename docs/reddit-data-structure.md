@@ -24,7 +24,7 @@ reddit_post = {
 }
 ```
 
-### Comments List Structure
+### List Structure: 'comments'
 The `comments` key contains a list of dictionaries (0-5 comments per post):
 
 ```python
@@ -44,7 +44,7 @@ The `comments` key contains a list of dictionaries (0-5 comments per post):
     # ... up to 5 comments total
 ]
 ```
-## all_data List Structure
+## List Structure: 'all_data'
 
 The `all_data` variable is a list that stores multiple `reddit_post` dictionaries, each representing a single Reddit post and its associated comments.
 
@@ -158,8 +158,8 @@ reddit_post['comments'].append(new_comment)
 - **Processing**: Each `reddit_post` in `all_data` gets processed for text cleaning
 
 ## Related Files
-- `reddit-auth.py`: Creates reddit_post dictionaries from Reddit API
-- `reddit-test-data.json`: Contains serialized all_data list
+- `ingest-reddit.py`: Creates reddit_post dictionaries from Reddit API
+- `file-name`: Contains serialized all_data list
 
 ---
 
