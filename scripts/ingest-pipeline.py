@@ -20,7 +20,6 @@ reddit = praw.Reddit(
     user_agent=user_agent,
 )
 
-# Fetch top posts from r/diy
 def fetch_posts(reddit, limit=2000):
     """Fetch top posts from r/diy subreddit with rate limiting."""
     print(f"Fetching top {limit} posts from r/diy...")
@@ -36,20 +35,13 @@ def fetch_posts(reddit, limit=2000):
     print(f"Successfully fetched {len(posts_list)} posts")
     return posts_list
 
-# Fetch top comments for a submission
 def fetch_comments(submission, limit=10):
     """Fetch top comments for a given submission."""
-    comments = []
+    # Expand "MoreComments" objects to access all comments
     submission.comments.replace_more(limit=0)
-    
-    for i, comment in enumerate(submission.comments):
-        if i >= limit:
-            break
-        comments.append(comment)
-    
-    return comments
+    # Slice to get only the top N comments
+    return list(submission.comments[:limit])
 
-# Clean text by removing URLs, markdown, and extra whitespace
 def clean_text(text):
     """Clean text by removing URLs, markdown formatting, and normalizing whitespace."""
     if not text:
@@ -72,7 +64,6 @@ def clean_text(text):
     
     return text
 
-# Build dataset from posts and comments
 def build_dataset(posts_list, comment_limit=10):
     """Build structured dataset from posts and their comments."""
     print("Building dataset from posts and comments...")
@@ -90,11 +81,7 @@ def build_dataset(posts_list, comment_limit=10):
         post_text = f"{clean_title} {clean_content}".strip()
         
         # Clean comments
-        clean_comments = []
-        for comment in comments:
-            clean_comment_text = clean_text(comment.body)
-            if clean_comment_text:  # Only include non-empty comments
-                clean_comments.append(clean_comment_text)
+        clean_comments = [clean_text(comment.body) for comment in comments if clean_text(comment.body)]
         
         # Create post entry
         post_entry = {
@@ -110,7 +97,6 @@ def build_dataset(posts_list, comment_limit=10):
     print(f"Dataset built with {len(dataset)} posts")
     return dataset
 
-# Save dataset to JSON
 def save_json(dataset, filename="reddit_data.json"):
     """Save dataset to JSON file."""
     print(f"Saving dataset to {filename}...")
@@ -119,7 +105,6 @@ def save_json(dataset, filename="reddit_data.json"):
         json.dump(dataset, f, indent=2, ensure_ascii=False)
     print(f"Dataset saved to {filename}")
 
-# Main orchestration function
 def main():
     """Main function to orchestrate the Reddit data pipeline."""
     print("Starting Reddit data pipeline...")
