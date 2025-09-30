@@ -1,0 +1,19 @@
+# Core dependencies for Workbench DIY MVP 
+
+# Reddit API access
+praw>=7.8.1
+
+# Vector embeddings and search
+sentence-transformers>=2.2.2
+pinecone-client>=2.2.4
+
+# LLM integration
+openai>=1.0.0
+
+# Data processing and utilities
+pandas>=2.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Development and testing
+pytest>=7.4.0
