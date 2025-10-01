@@ -4,14 +4,15 @@ import json
 import time
 import re
 from dotenv import load_dotenv
+import keyring
 
 # Load environment variables
 load_dotenv()
 
-# Get Reddit API credentials from .env file
-client_id = os.getenv('REDDIT_CLIENT_ID')
-client_secret = os.getenv('REDDIT_CLIENT_SECRET')
-user_agent = os.getenv('REDDIT_USER_AGENT') or "TestScript/1.0 by /u/chippetto90"
+#Get Reddit API creds from KeyRing
+client_id = keyring.get_password("reddit-client-id", "reddit-api")
+client_secret = keyring.get_password("reddit-client-secret", "reddit-api")
+user_agent = "TestScript/1.0 by /u/chippetto90"
 
 # Initialize Reddit client
 reddit = praw.Reddit(

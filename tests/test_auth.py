@@ -1,41 +1,34 @@
-#!/usr/bin/env python3
-"""Simple Reddit API authentication test"""
+#Quick sanity test for reddit auth for ingestion pipeline
+import praw 
+import keyring 
+import openai
 
-import os
-import praw
+#Test reddit auth 
 
-# Load credentials from environment
-client_id = os.getenv('REDDIT_CLIENT_ID')
-client_secret = os.getenv('REDDIT_CLIENT_SECRET')
-user_agent = 'TestScript/1.0 by /u/chippetto90'
+def test_reddit_auth():
+    client_id = keyring.get_password("reddit-client-id", "reddit-api")
+    client_secret = keyring.get_password("reddit-client-secret", "reddit-api")
+    user_agent = "TestScript/1.0 by /u/chippetto90"
 
-print("Testing Reddit API authentication...")
-print(f"Client ID: {client_id[:10]}..." if client_id else "Client ID: NOT FOUND")
-print(f"Client Secret: {'SET' if client_secret else 'NOT FOUND'}")
+    reddit = praw.Reddit(
+        client_id=client_id,
+        client_secret=client_secret,
+        user_agent=user_agent,
+        read_only=True,
+    )
+    posts = list(reddit.subreddit("diy").hot(limit=1))
+    assert posts, "Reddit auth failed"
+    print("Retrieved post:", posts[0].title)
 
-if not client_id or not client_secret:
-    print("❌ Missing credentials - export them first")
-    if __name__ == "__main__":
-        exit(1)
-    else:
-        # Skip test if credentials not available
-        import unittest
-        class TestAuth(unittest.TestCase):
-            def test_auth_skipped(self):
-                self.skipTest("Reddit credentials not available")
-        unittest.main(exit=False)
-        return
+#Test openai auth 
 
-try:
-    reddit = praw.Reddit(client_id=client_id, client_secret=client_secret, user_agent=user_agent, read_only=True)
-    subreddit = reddit.subreddit('diy')
-    test_posts = list(subreddit.hot(limit=1))
-    
-    if test_posts:
-        print("✅ Authentication successful!")
-        print(f"Test post: {test_posts[0].title[:50]}...")
-    else:
-        print("❌ No posts returned")
-        
-except Exception as e:
-    print(f"❌ Authentication failed: {e}")
+#def test_openai_auth():
+    # assumes your key is stored in Keychain under service "openai" / user "api-key"
+    #api_key = keyring.get_password("openai", "api-key")
+    #openai.api_key = api_key
+
+    #resp = openai.embeddings.create(
+        #model="text-embedding-3-small",
+        #input="hello world"
+    #)
+    #assert "data" in resp and len(resp.data) > 0, "OpenAI auth failed"
