@@ -15,7 +15,16 @@ print(f"Client Secret: {'SET' if client_secret else 'NOT FOUND'}")
 
 if not client_id or not client_secret:
     print("❌ Missing credentials - export them first")
-    exit(1)
+    if __name__ == "__main__":
+        exit(1)
+    else:
+        # Skip test if credentials not available
+        import unittest
+        class TestAuth(unittest.TestCase):
+            def test_auth_skipped(self):
+                self.skipTest("Reddit credentials not available")
+        unittest.main(exit=False)
+        return
 
 try:
     reddit = praw.Reddit(client_id=client_id, client_secret=client_secret, user_agent=user_agent, read_only=True)

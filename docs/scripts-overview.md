@@ -6,18 +6,22 @@ This document provides a comprehensive overview of all scripts in the `/scripts/
 
 ```
 scripts/
-├── ingest-pipeline.py      # Reddit data collection
-├── embeddings-pipeline.py  # Vector embedding generation
+├── ingest_pipeline.py      # Reddit data collection
+├── embeddings_pipeline.py  # Vector embedding generation
 ├── vector_store.py         # Pinecone operations
 ├── llm_client.py          # OpenAI operations
-├── rag_orchestrator.py    # RAG coordination
-└── test_embeddings.py     # Embeddings testing
+└── rag_orchestrator.py    # RAG coordination
+
+tests/
+├── test_ingest_pipeline.py # Unit tests for ingest pipeline
+├── test_embeddings.py      # Unit tests for embeddings
+└── test_auth.py           # Authentication tests
 ```
 
 ## 🔄 Pipeline Flow
 
 ```
-ingest-pipeline.py → embeddings-pipeline.py → rag_orchestrator.py
+ingest_pipeline.py → embeddings_pipeline.py → rag_orchestrator.py
      (Reddit data)      (Vector embeddings)    (RAG answers)
 ```
 
@@ -25,7 +29,7 @@ ingest-pipeline.py → embeddings-pipeline.py → rag_orchestrator.py
 
 ### **Data Pipeline Files**
 
-#### 1. `ingest-pipeline.py` (164 lines)
+#### 1. `ingest_pipeline.py` (164 lines)
 - **Purpose**: Fetches Reddit posts and comments from DIY subreddit
 - **Function**: Downloads data via Reddit API (PRAW) and saves to JSONL format
 - **Key Features**:
@@ -36,7 +40,7 @@ ingest-pipeline.py → embeddings-pipeline.py → rag_orchestrator.py
 - **Output**: `reddit_data.jsonl` with posts and comments
 - **Status**: ✅ Complete
 
-#### 2. `embeddings-pipeline.py` (287 lines)
+#### 2. `embeddings_pipeline.py` (287 lines)
 - **Purpose**: Converts text data to vector embeddings and stores in Pinecone
 - **Key Functions**:
   - `generate_embeddings(jsonl_file)` - Creates OpenAI embeddings from JSONL
@@ -127,12 +131,12 @@ ingest-pipeline.py → embeddings-pipeline.py → rag_orchestrator.py
 
 1. **Data Collection**:
    ```bash
-   python scripts/ingest-pipeline.py
+   python scripts/ingest_pipeline.py
    ```
 
 2. **Generate Embeddings**:
    ```bash
-   python scripts/embeddings-pipeline.py
+   python scripts/embeddings_pipeline.py
    ```
 
 3. **Query the RAG System**:
@@ -143,7 +147,10 @@ ingest-pipeline.py → embeddings-pipeline.py → rag_orchestrator.py
 ### Testing the Pipeline
 
 ```bash
-python scripts/test_embeddings.py
+# Run unit tests
+python tests/test_ingest_pipeline.py
+python tests/test_embeddings.py
+python tests/test_auth.py
 ```
 
 ### Programmatic Usage
@@ -173,12 +180,14 @@ All scripts use environment variables for configuration:
 
 | File | Status | Description |
 |------|--------|-------------|
-| `ingest-pipeline.py` | ✅ Complete | Reddit data collection |
-| `embeddings-pipeline.py` | ✅ Complete | Vector embedding generation |
+| `ingest_pipeline.py` | ✅ Complete | Reddit data collection |
+| `embeddings_pipeline.py` | ✅ Complete | Vector embedding generation |
 | `vector_store.py` | ✅ Complete | Pinecone operations |
 | `llm_client.py` | ✅ Complete | OpenAI operations |
 | `rag_orchestrator.py` | ✅ Complete | RAG coordination |
-| `test_embeddings.py` | ✅ Complete | Embeddings testing |
+| `tests/test_ingest_pipeline.py` | ✅ Complete | Unit tests for ingest pipeline |
+| `tests/test_embeddings.py` | ✅ Complete | Unit tests for embeddings |
+| `tests/test_auth.py` | ✅ Complete | Authentication tests |
 | `search.py` | ⚠️ Placeholder | Semantic search (functionality in vector_store.py) |
 | `rag-pipeline.py` | ⚠️ Placeholder | RAG integration (functionality in rag_orchestrator.py) |
 
