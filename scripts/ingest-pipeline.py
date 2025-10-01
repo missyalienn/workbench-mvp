@@ -20,7 +20,7 @@ reddit = praw.Reddit(
     user_agent=user_agent,
 )
 
-def fetch_posts(reddit, limit=1000):
+def fetch_posts(reddit, limit=10):
     """Fetch top posts from r/diy subreddit with rate limiting."""
     print(f"Fetching top {limit} posts from r/diy...")
     posts_list = []
@@ -141,12 +141,22 @@ def main():
     print("Starting Reddit data pipeline...")
     print(f"User Agent: {user_agent}")
     
-    # Test Reddit connection
+    # Test Reddit connection with actual data fetch
     try:
-        reddit.user.me()
-        print("Reddit API authentication successful.")
+        # Test with a small data fetch to validate credentials
+        subreddit = reddit.subreddit("diy")
+        test_posts = list(subreddit.hot(limit=1))  # Just 1 post to test
+        
+        if test_posts:
+            print("Reddit API authentication successful.")
+            print(f"Test post title: {test_posts[0].title[:50]}...")
+        else:
+            print("Reddit API authentication failed: No posts returned")
+            return
+            
     except Exception as e:
         print(f"Reddit API authentication failed: {e}")
+        print("Check your REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in .env")
         return
     
     # Fetch posts

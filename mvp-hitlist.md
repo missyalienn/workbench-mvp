@@ -1,4 +1,4 @@
-# Workbench MVP Pipeline - Implementation Status
+# Workbench MVP - Implementation Status
 
 This document tracks the implementation status of the Reddit DIY RAG pipeline components.
 
@@ -89,7 +89,7 @@ print(result['sources'])   # List of sources used
 
 ## 📋 Architecture Overview
 
-The pipeline follows a modular architecture:
+The project follows a modular architecture:
 
 - **Data Pipeline**: `ingest-pipeline.py` → `embeddings-pipeline.py`
 - **RAG Components**: `vector_store.py` + `llm_client.py` → `rag_orchestrator.py`
@@ -110,8 +110,3 @@ The pipeline follows a modular architecture:
 - ✅ Comprehensive testing
 
 ## 📝 Notes
-
-- All placeholder functionality has been implemented
-- The system supports end-to-end Reddit data → embeddings → semantic search → contextual answers
-- Citations are automatically included in responses using `[source: post_id]` format
-- Modular architecture allows for easy testing and maintenance
