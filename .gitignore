@@ -1,6 +1,10 @@
 # Custom project files
 AGENTS.md
 
+# Data files
+*.jsonl
+reddit_data.jsonl
+
 # Project-specific virtual environments
 reddit-env/
 01-reddit-experiments/reddit-env/
@@ -222,12 +226,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Custom project files
-AGENTS.md
-
-# Project-specific virtual environments
-reddit-env/
-01-reddit-experiments/reddit-env/
 
 
 

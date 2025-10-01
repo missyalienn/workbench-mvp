@@ -149,7 +149,6 @@ def main():
         
         if test_posts:
             print("Reddit API authentication successful.")
-            print(f"Test post title: {test_posts[0].title[:50]}...")
         else:
             print("Reddit API authentication failed: No posts returned")
             return
@@ -160,7 +159,7 @@ def main():
         return
     
     # Fetch posts
-    posts_list = fetch_posts(reddit, limit=1000)
+    posts_list = fetch_posts(reddit, limit=10)
     
     # Build dataset
     dataset = build_dataset(posts_list, comment_limit=10)
