@@ -6,6 +6,10 @@ Test script for the embeddings pipeline.
 import os
 import json
 import tempfile
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+
 from embeddings_pipeline import generate_embeddings, upsert_to_pinecone
 
 def create_test_jsonl():
