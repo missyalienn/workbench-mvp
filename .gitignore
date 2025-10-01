@@ -5,10 +5,6 @@ AGENTS.md
 *.jsonl
 reddit_data.jsonl
 
-# Project-specific virtual environments
-reddit-env/
-01-reddit-experiments/reddit-env/
-
 # Environments
 .env
 .envrc
@@ -17,6 +13,7 @@ env/
 venv/
 ENV/
 env.bak/
+venv.bak/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -82,11 +79,11 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
-.webassets-cache
+#instance/
+#.webassets-cache
 
 # Scrapy stuff:
-.scrapy
+#.scrapy
 
 # Sphinx documentation
 docs/_build/
@@ -153,16 +150,6 @@ celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
-
-# Environments
-.env
-.envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
 # Spyder project settings
 .spyderproject
