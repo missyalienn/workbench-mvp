@@ -1,115 +1,84 @@
 # Reddit Data Structure Documentation
 
 ## Overview
-This document describes the data structure used to store Reddit posts and comments in the Workbench DIY project.
+This document describes the flat JSONL data structure used to store Reddit posts and comments in the Workbench DIY project.
 
 ## Data Flow
 ```
-submission (Reddit API object) → reddit_post (dictionary) → all_data (list of dictionaries)
+submission (Reddit API object) → flat records → JSONL file (one record per line)
 ```
 
-## reddit_post Dictionary Structure
+## JSONL Format Structure
 
-### Top-Level Structure
-The `reddit_post` dictionary contains 6 key-value pairs:
+### File Format
+The data is stored in JSONL (JSON Lines) format where each line contains a single JSON object representing either a post or a comment.
 
-```python
-reddit_post = {
-    'post_id': '1n695i4',                    # String: Reddit post ID
-    'title': 'I messed up, and I hate myself', # String: Post title
-    'content': 'Shoud\u2019ve turned the support studs...', # String: Post body text
-    'score': 6661,                           # Integer: Upvotes/downvotes
-    'permalink': 'https://reddit.com/r/DIY/comments/1n695i4/i_messed_up_and_i_hate_myself/', # String: Full URL
-    'comments': [...]                        # List: List of comment dictionaries
+### Post Record Structure
+```json
+{
+    "id": "post_1n695i4",
+    "type": "post",
+    "text": "I messed up, and I hate myself Shoud've turned the support studs...",
+    "score": 6661,
+    "source": "reddit",
+    "url": "https://reddit.com/r/DIY/comments/1n695i4/i_messed_up_and_i_hate_myself/",
+    "created_at": 1705312200.0
 }
 ```
 
-### List Structure: 'comments'
-The `comments` key contains a list of dictionaries (0-5 comments per post):
-
-```python
-'comments': [
-    {
-        'post_id': '1n695i4',            # String: Links back to parent post
-        'comment_id': 'nbyf9dz',         # String: Reddit comment ID
-        'body': 'Are you storing loose ball bearings on the shelves? No? Then it\u2019s good enough.', # String: Comment text
-        'score': 13365                   # Integer: Comment upvotes/downvotes
-    },
-    {
-        'post_id': '1n695i4',
-        'comment_id': 'nbyffta', 
-        'body': 'Is shelf.',
-        'score': 803
-    }
-    # ... up to 5 comments total
-]
+### Comment Record Structure
+```json
+{
+    "id": "comment_nbyf9dz",
+    "type": "comment",
+    "text": "Are you storing loose ball bearings on the shelves? No? Then it's good enough.",
+    "score": 13365,
+    "link_id": "post_1n695i4",
+    "source": "reddit",
+    "created_at": 1705315800.0
+}
 ```
-## List Structure: 'all_data'
 
-The `all_data` variable is a list that stores multiple `reddit_post` dictionaries, each representing a single Reddit post and its associated comments.
+### Field Definitions
 
-### Structure Example
-```python
-all_data = [
-    {
-        'post_id': '1n695i4',
-        'title': 'I messed up, and I hate myself',
-        'content': 'Shoud\u2019ve turned the support studs...',
-        'score': 6661,
-        'permalink': 'https://reddit.com/r/DIY/comments/1n695i4/i_messed_up_and_i_hate_myself/',
-        'comments': [
-            {
-                'post_id': '1n695i4',
-                'comment_id': 'nbyf9dz',
-                'body': 'Are you storing loose ball bearings on the shelves? No? Then it\u2019s good enough.',
-                'score': 13365
-            },
-            {
-                'post_id': '1n695i4',
-                'comment_id': 'nbyffta',
-                'body': 'Is shelf.',
-                'score': 803
-            }
-        ]
-    },
-    {
-        'post_id': '1n6a2b3',
-        'title': 'DIY Bookshelf Completed!',
-        'content': 'Built my first bookshelf from scratch. Used pine and oak for the frame.',
-        'score': 2450,
-        'permalink': 'https://reddit.com/r/DIY/comments/1n6a2b3/diy_bookshelf_completed/',
-        'comments': [
-            {
-                'post_id': '1n6a2b3',
-                'comment_id': 'nbz1abc',
-                'body': 'Looks great! How long did it take you?',
-                'score': 210
-            },
-            {
-                'post_id': '1n6a2b3',
-                'comment_id': 'nbz1xyz',
-                'body': 'What finish did you use?',
-                'score': 98
-            }
-        ]
-    }
-]
+#### Common Fields (All Records)
+- **`id`** (string): Unique identifier prefixed with `post_` or `comment_` + Reddit ID
+- **`type`** (string): Record type - either `"post"` or `"comment"`
+- **`text`** (string): Cleaned text content (title + content for posts, body for comments)
+- **`score`** (integer): Reddit upvotes/downvotes score
+- **`source`** (string): Always `"reddit"`
+- **`created_at`** (float): Unix timestamp from Reddit's `created_utc`
+
+#### Post-Specific Fields
+- **`url`** (string): Full Reddit permalink URL
+
+#### Comment-Specific Fields
+- **`link_id`** (string): Parent post ID (prefixed with `post_`) to maintain relationships
+
+### Example JSONL File Content
+```jsonl
+{"id": "post_1n695i4", "type": "post", "text": "I messed up, and I hate myself Shoud've turned the support studs...", "score": 6661, "source": "reddit", "url": "https://reddit.com/r/DIY/comments/1n695i4/i_messed_up_and_i_hate_myself/", "created_at": 1705312200.0}
+{"id": "comment_nbyf9dz", "type": "comment", "text": "Are you storing loose ball bearings on the shelves? No? Then it's good enough.", "score": 13365, "link_id": "post_1n695i4", "source": "reddit", "created_at": 1705315800.0}
+{"id": "comment_nbyffta", "type": "comment", "text": "Is shelf.", "score": 803, "link_id": "post_1n695i4", "source": "reddit", "created_at": 1705316400.0}
+{"id": "post_1n6a2b3", "type": "post", "text": "DIY Bookshelf Completed! Built my first bookshelf from scratch. Used pine and oak for the frame.", "score": 2450, "source": "reddit", "url": "https://reddit.com/r/DIY/comments/1n6a2b3/diy_bookshelf_completed/", "created_at": 1705320000.0}
+{"id": "comment_nbz1abc", "type": "comment", "text": "Looks great! How long did it take you?", "score": 210, "link_id": "post_1n6a2b3", "source": "reddit", "created_at": 1705323600.0}
 ```
 
 
 ## Key Points
 
 ### Data Types
-- **Strings**: post_id, title, content, permalink, comment_id, body
-- **Integers**: score (both post and comment scores)
-- **Lists**: comments list
-- **Dictionaries**: reddit_post itself, each comment in comments list
+- **Strings**: id, type, text, source, url, link_id
+- **Integers**: score
+- **Floats**: created_at (Unix timestamp)
+- **JSON Objects**: Each line in the JSONL file
 
-### Nested Structure
-- **reddit_post** = Dictionary with 6 key:value pairs
-- **5 values** = Simple data (strings, integers)
-- **1 value** (`comments`) = List of dictionaries
-
+### Flat Structure Benefits
+- **Memory Efficient**: Process one record at a time
+- **Streamable**: No need to load entire file into memory
+- **Embedding Ready**: Each record can be processed individually
+- **Search Friendly**: Each line is a searchable unit
+- **LLM Compatible**: Easy to format for prompts
 
 ### Unicode Handling
 - Text may contain Unicode escape sequences like `\u2019` (smart quotes)
@@ -117,98 +86,90 @@ all_data = [
 
 ## Usage Examples
 
-### Accessing Data
+### Reading JSONL File
 ```python
-# Access post information
-post_title = reddit_post['title']
-post_score = reddit_post['score']
+import json
 
-# Access comments
-comments_list = reddit_post['comments']
-first_comment = reddit_post['comments'][0]
-first_comment_body = reddit_post['comments'][0]['body']
+# Process records one at a time
+with open('reddit_data.jsonl', 'r', encoding='utf-8') as f:
+    for line in f:
+        record = json.loads(line.strip())
+        if record['type'] == 'post':
+            print(f"Post: {record['text'][:100]}...")
+        elif record['type'] == 'comment':
+            print(f"Comment: {record['text'][:100]}...")
 ```
 
-### Iterating Through Comments
+### Filtering by Type
 ```python
-for comment in reddit_post['comments']:
-    comment_id = comment['comment_id']
-    comment_body = comment['body']
-    comment_score = comment['score']
+# Get only posts
+posts = []
+with open('reddit_data.jsonl', 'r', encoding='utf-8') as f:
+    for line in f:
+        record = json.loads(line.strip())
+        if record['type'] == 'post':
+            posts.append(record)
+
+# Get only comments
+comments = []
+with open('reddit_data.jsonl', 'r', encoding='utf-8') as f:
+    for line in f:
+        record = json.loads(line.strip())
+        if record['type'] == 'comment':
+            comments.append(record)
 ```
 
-### Modifying Data
+### Finding Related Records
 ```python
-# Add cleaned text field
-reddit_post['clean_text'] = cleaned_content
+# Find all comments for a specific post
+post_id = "post_1n695i4"
+related_comments = []
 
-# Add comment to list
-new_comment = {
-    'post_id': reddit_post['post_id'],
-    'comment_id': 'new_id',
-    'body': 'New comment text',
-    'score': 0
-}
-reddit_post['comments'].append(new_comment)
+with open('reddit_data.jsonl', 'r', encoding='utf-8') as f:
+    for line in f:
+        record = json.loads(line.strip())
+        if record['type'] == 'comment' and record['link_id'] == post_id:
+            related_comments.append(record)
+```
+
+### Building Context for LLM
+```python
+def build_context(post_id, max_comments=5):
+    """Build context string for LLM from post and its comments."""
+    context_parts = []
+    
+    with open('reddit_data.jsonl', 'r', encoding='utf-8') as f:
+        for line in f:
+            record = json.loads(line.strip())
+            
+            if record['id'] == post_id:
+                context_parts.append(f"Post: {record['text']}")
+            elif record['type'] == 'comment' and record['link_id'] == post_id:
+                if len(context_parts) < max_comments + 1:  # +1 for post
+                    context_parts.append(f"Comment: {record['text']}")
+    
+    return "\n\n".join(context_parts)
 ```
 
 ## Storage
-- **all_data**: List containing all `reddit_post` dictionaries
-- **JSON format**: Stored as `reddit-test-data.json`
-- **Processing**: Each `reddit_post` in `all_data` gets processed for text cleaning
+- **Format**: JSONL (JSON Lines) - one JSON object per line
+- **Filename**: `reddit_data.jsonl`
+- **Processing**: Each line can be processed independently
+- **Batching**: Records are saved in batches of 100 for efficiency
 
 ## Related Files
-- `ingest-reddit.py`: Creates reddit_post dictionaries from Reddit API
-- `file-name`: Contains serialized all_data list
+- `scripts/ingest-pipeline.py`: Creates JSONL records from Reddit API
+- `scripts/test_jsonl.py`: Validates JSONL format and structure
+- `reddit_data.jsonl`: Contains the serialized records
 
----
-
-## Reference: Array vs List
-
-**In Python, there's no "array" - only lists!**
-
-- **Array**: A term from other programming languages (C, Java, JavaScript)
-- **List**: Python's data structure for ordered collections
-- **In Python docs**: People often say "array" but mean "list"
-
-**Python List = Array in Other Languages:**
-
-```python
-# Python List
-my_list = ['apple', 'banana', 'cherry']
-print(my_list[0])  # 'apple' - indexed access
-print(my_list[1])  # 'banana' - ordered
+## Testing
+Run the test script to validate the JSONL output:
+```bash
+python scripts/test_jsonl.py
 ```
 
-```javascript
-// JavaScript Array (same concept)
-let myArray = ['apple', 'banana', 'cherry'];
-console.log(myArray[0]);  // 'apple' - same indexed access
-```
-
-**Key Characteristics:**
-- **Indexed**: Access items by position `[0]`, `[1]`, `[2]`
-- **Ordered**: Items stay in the order you put them
-- **Mutable**: You can add, remove, change items
-- **Can hold any data type**: Strings, numbers, dictionaries, other lists
-
-**What is `comments`?**
-```python
-reddit_post = {
-    'comments': [                    # ← This is a LIST
-        {                           # ← Dictionary #1 in the list
-            'comment_id': 'abc123',
-            'body': 'First comment'
-        },
-        {                           # ← Dictionary #2 in the list  
-            'comment_id': 'def456',
-            'body': 'Second comment'
-        }
-    ]
-}
-```
-
-**`comments` is:**
-- A **Python list** (not an array)
-- A **list of dictionaries**
-- Each item in the list is a **comment dictionary**
+This will verify:
+- Each line is valid JSON
+- Required fields are present
+- ID formats are correct
+- Records can be processed individually

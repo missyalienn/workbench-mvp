@@ -69,7 +69,7 @@ def clean_text(text):
     return text
 
 def build_dataset(posts_list, comment_limit=10):
-    """Build structured dataset from posts and their comments."""
+    """Build flat dataset from posts and their comments."""
     print("Building dataset...")
     dataset = []
     
@@ -84,52 +84,57 @@ def build_dataset(posts_list, comment_limit=10):
         # Combine title and content
         post_text = f"{clean_title} {clean_content}".strip()
         
-        # Clean comments
-        clean_comments = [clean_text(comment.body) for comment in comments if clean_text(comment.body)]
-        
-        # Create post entry
-        post_entry = {
-            'post_id': submission.id,
-            'post_text': post_text,
-            'comments': clean_comments,
+        # Create post record (flat structure)
+        post_record = {
+            'id': f"post_{submission.id}",
+            'type': 'post',
+            'text': post_text,
             'score': submission.score,
-            'permalink': f"https://reddit.com{submission.permalink}",
+            'source': 'reddit',
+            'url': f"https://reddit.com{submission.permalink}",
+            'created_at': submission.created_utc
         }
+        dataset.append(post_record)
         
-        dataset.append(post_entry)
+        # Create comment records (flat structure)
+        for comment in comments:
+            clean_comment_text = clean_text(comment.body)
+            if clean_comment_text:  # Only add non-empty comments
+                comment_record = {
+                    'id': f"comment_{comment.id}",
+                    'type': 'comment',
+                    'text': clean_comment_text,
+                    'score': comment.score,
+                    'link_id': f"post_{submission.id}",
+                    'source': 'reddit',
+                    'created_at': comment.created_utc
+                }
+                dataset.append(comment_record)
     
-    print(f"Dataset built with {len(dataset)} posts")
+    print(f"Dataset built with {len(dataset)} records")
     return dataset
 
-def save_json(dataset, filename="reddit_data.json", batch_size=100):
-    """Save dataset to JSON file in batches."""
+def save_jsonl(dataset, filename="reddit_data.jsonl", batch_size=100):
+    """Save dataset to JSONL file in batches."""
     print(f"Saving dataset to {filename} in batches of {batch_size}...")
     
-    # Initialize JSON file with opening bracket
+    # Clear the file first
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write('[\n')
+        pass
     
     # Process dataset in batches
     for i in range(0, len(dataset), batch_size):
         batch = dataset[i:i + batch_size]
         
-        # Append batch to file
+        # Append batch to file (one JSON object per line)
         with open(filename, 'a', encoding='utf-8') as f:
-            for j, post in enumerate(batch):
-                # Add comma after each post except the last one in the entire dataset
-                is_last_post = (i + j == len(dataset) - 1)
-                json.dump(post, f, indent=2, ensure_ascii=False)
-                if not is_last_post:
-                    f.write(',')
-                f.write('\n')
+            for record in batch:
+                json.dump(record, f, ensure_ascii=False)
+                f.write('\n')  # One record per line
         
-        print(f"Saved batch {i//batch_size + 1}/{(len(dataset) + batch_size - 1)//batch_size} ({len(batch)} posts)")
+        print(f"Saved batch {i//batch_size + 1}/{(len(dataset) + batch_size - 1)//batch_size} ({len(batch)} records)")
     
-    # Close JSON array
-    with open(filename, 'a', encoding='utf-8') as f:
-        f.write(']')
-    
-    print(f"Dataset saved to {filename} ({len(dataset)} total posts)")
+    print(f"Dataset saved to {filename} ({len(dataset)} total records)")
 
 def main():
     """Main function to orchestrate the Reddit data pipeline."""
@@ -150,8 +155,8 @@ def main():
     # Build dataset
     dataset = build_dataset(posts_list, comment_limit=10)
     
-    # Save to JSON
-    save_json(dataset, filename="reddit_data.json")
+    # Save to JSONL
+    save_jsonl(dataset, filename="reddit_data.jsonl")
     
     print("Pipeline completed successfully!")
 

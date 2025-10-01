@@ -14,9 +14,9 @@
 
 ### Task 1.2: Reddit Data Ingestion
 - [ ] Authenticate to Reddit API  
-- [ ] Fetch top N posts and top M comments from `r/diy` (configurable)  
-- [ ] Store raw data in JSON  
+- [ ] Fetch  posts and top 10 comments from `r/diy` (configurable)  
 - [ ] Clean/normalize text (remove markdown, URLs, whitespace)
+- [ ] Store raw data in JSON  
 
 ### Task 1.3: Vectorization
 - [ ] Generate embeddings with Sentence Transformers  
