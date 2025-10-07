@@ -40,7 +40,7 @@ def fetch_comments(submission, limit=10):
     """Fetch top comments for a given submission."""
     try:
         # Expand "MoreComments" objects to access all comments with threshold filtering
-        submission.comments.replace_more(limit=0, threshold=3)
+        submission.comments.replace_more(limit=0, threshold=2)
         # Use .list() to get flattened comment structure and slice to limit
         return list(submission.comments.list()[:limit])
     except Exception as e:
@@ -142,11 +142,10 @@ def main():
     print("Starting Reddit data pipeline...")
     print(f"User Agent: {user_agent}")
     
-    # Test Reddit connection with actual data fetch
+    # Try to fetch 2 posts from given subreddit to validate credentials
     try:
-        # Test with a small data fetch to validate credentials
         subreddit = reddit.subreddit("diy")
-        test_posts = list(subreddit.hot(limit=1))  # Just 1 post to test
+        test_posts = list(subreddit.hot(limit=2))  
         
         if test_posts:
             print("Reddit API authentication successful.")
@@ -156,19 +155,31 @@ def main():
             
     except Exception as e:
         print(f"Reddit API authentication failed: {e}")
-        print("Check your REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in .env")
+        print("Unable to fetch posts from subreddit. Check your Reddit API credentials.")
         return
     
     # Fetch posts
-    posts_list = fetch_posts(reddit, limit=10)
+    posts_list = fetch_posts(reddit, limit=5)
     
     # Build dataset
-    dataset = build_dataset(posts_list, comment_limit=10)
+    dataset = build_dataset(posts_list, comment_limit=5)
     
     # Save to JSONL
     save_jsonl(dataset, filename="reddit_data.jsonl")
     
     print("Pipeline completed successfully!")
 
+def main_small_run():
+    """Fetch a small test dataset: 5 posts, 5 comments per post."""
+    print("Starting small Reddit data pipeline...")
+    
+    posts_list = fetch_posts(reddit, limit=5)            # 5 posts
+    dataset = build_dataset(posts_list, comment_limit=5) # 5 comments per post
+    save_jsonl(dataset, filename="reddit_data_small.jsonl")
+    
+    print("Small dataset pipeline completed successfully!")
+
+
 if __name__ == "__main__":
-    main()
+    #main()
+    main_small_run()
