@@ -15,12 +15,9 @@ def test_reddit_auth():
         client_secret=client_secret,
         user_agent=user_agent,
     )
-
     assert reddit.read_only, "Reddit auth failed"
 
-
 #Test openai auth 
-
 def test_openai_auth():
     api_key = keyring.get_password("openai-key", "dev")
     client = OpenAI(api_key=api_key)

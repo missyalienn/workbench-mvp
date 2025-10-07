@@ -6,7 +6,6 @@ import keyring
 from dotenv import load_dotenv
 #load_dotenv()
 
-
 # Get OpenAI API key from Keychain
 api_key = keyring.get_password("openai-key", "dev")
 

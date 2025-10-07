@@ -24,4 +24,3 @@ A living log of commands, tricks, and lessons learned while building this projec
 ## 📚 Tests Lessons 
 - Cursor’s generated tests = scaffolding, not real unit tests
 - Refactoring into pytest style makes tests shorter, clearer, and maintainable
-
