@@ -24,36 +24,9 @@ reddit = praw.Reddit(
 
 print("User agent:", user_agent)
 
-def test_flair_structure(reddit):
-    subreddit = reddit.subreddit('diy')
-    
-    for i, post in enumerate(subreddit.new(limit=5)):
-        print(f"Post {i+1}:")
-        print(f"  Title: {post.title[:50]}...")
-        print(f"  Flair Text: {getattr(post, 'link_flair_text', None)}")
-        print(f"  Flair Template ID: {getattr(post, 'link_flair_template_id', None)}")
-        print(f"  Flair CSS Class: {getattr(post, 'link_flair_css_class', None)}")
-        print("-" * 30)
 
-#test_flair_structure(reddit)
-
-def test_home_improvement_posts(reddit, limit=5, sample_size=50):
-    """
-    Fetch top 'home improvement' posts from r/diy.
-    Works regardless of whether flair has template ID.
-    """
-    posts_list = []
-    subreddit = reddit.subreddit("diy")
-    
-    for submission in subreddit.top(time_filter="year", limit=sample_size):
-        if submission.link_flair_text and submission.link_flair_text.lower() == "help":
-            posts_list.append(submission)
-            if len(posts_list) >= limit:
-                break
-        time.sleep(.5)  # Respect Reddit API limits
-    return posts_list
-
-def fetch_home_improvement_posts(reddit, limit=5, sample_size=50, delay=0.5):
+#Fetch top posts by subreddit flair
+def fetch_posts_by_flair(reddit, limit=5, sample_size=50, delay=0.5):
     """
     Fetch top posts from r/diy filtered for a given flair ("home improvement", "help", etc)
     Prints each matching post while fetching.
@@ -74,4 +47,23 @@ def fetch_home_improvement_posts(reddit, limit=5, sample_size=50, delay=0.5):
     print(f"\nFinished! Collected {len(posts_list)} posts.\n")
     return posts_list
     
-fetch_home_improvement_posts(reddit)
+fetch_posts_by_flair(reddit)
+
+
+
+
+
+#Return the flair structure for a subreddit (r/diy)
+def test_flair_structure(reddit):
+    subreddit = reddit.subreddit('diy')
+    
+    for i, post in enumerate(subreddit.new(limit=5)):
+        print(f"Post {i+1}:")
+        print(f"  Title: {post.title[:50]}...")
+        print(f"  Flair Text: {getattr(post, 'link_flair_text', None)}")
+        print(f"  Flair Template ID: {getattr(post, 'link_flair_template_id', None)}")
+        print(f"  Flair CSS Class: {getattr(post, 'link_flair_css_class', None)}")
+        print("-" * 30)
+
+#test_flair_structure(reddit)
+
