@@ -3,6 +3,9 @@ import praw
 import json
 import time
 import re
+from html import unescape
+from html.parser import HTMLParser
+from markdown_it import MarkdownIt
 from dotenv import load_dotenv
 import keyring
 
@@ -13,6 +16,37 @@ load_dotenv()
 client_id = keyring.get_password("reddit-client-id", "reddit-api")
 client_secret = keyring.get_password("reddit-client-secret", "reddit-api")
 user_agent = "TestScript/1.0 by /u/chippetto90"
+
+ALLOWED_FLAIRS = {"help", "question", "advice", "how to"}
+TITLE_KEYWORDS = ("how", "what", "why", "can", "should", "best way", "need help")
+
+markdown_parser = MarkdownIt()
+URL_PATTERN = re.compile(r'https?://\S+', re.I)
+WHITESPACE_PATTERN = re.compile(r'\s+')
+
+class _MarkdownTextExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self._chunks = []
+
+    def handle_data(self, data):
+        self._chunks.append(data)
+
+    def get_text(self):
+        return " ".join(self._chunks)
+
+
+def _markdown_to_text(raw_markdown: str) -> str:
+    extractor = _MarkdownTextExtractor()
+    extractor.feed(markdown_parser.render(raw_markdown))
+    extractor.close()
+    return extractor.get_text()
+
+
+def _sanitize_text(text: str) -> str:
+    no_urls = URL_PATTERN.sub("", text)
+    unescaped = unescape(no_urls)
+    return WHITESPACE_PATTERN.sub(" ", unescaped).strip()
 
 # Initialize Reddit client
 reddit = praw.Reddit(
@@ -51,23 +85,9 @@ def clean_text(text):
     """Clean text by removing URLs, markdown formatting, and normalizing whitespace."""
     if not text:
         return ""
-    
-    # Remove URLs
-    text = re.sub(r'https?://\S+', '', text)
-    # Remove markdown links but keep the text
-    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-    # Remove bold markdown
-    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
-    # Remove italic markdown
-    text = re.sub(r'\*([^*]+)\*', r'\1', text)
-    # Remove strikethrough
-    text = re.sub(r'~~([^~]+)~~', r'\1', text)
-    # Remove code blocks
-    text = re.sub(r'`([^`]+)`', r'\1', text)
-    # Normalize whitespace and remove newlines
-    text = re.sub(r'\s+', ' ', text).strip()
-    
-    return text
+
+    plain_text = _markdown_to_text(text)
+    return _sanitize_text(plain_text)
 
 def build_dataset(posts_list, comment_limit=10):
     """Build flat dataset from posts and their comments."""
