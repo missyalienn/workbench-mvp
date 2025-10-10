@@ -91,9 +91,9 @@ def build_dataset(posts_list, comment_limit=10):
             'type': 'post',
             'text': post_text,
             'score': submission.score,
-            'source': 'reddit',
             'url': f"https://reddit.com{submission.permalink}",
-            'created_at': submission.created_utc
+            'flair': (getattr(submission, 'link_flair_text', '') or '').lower(),
+            'len_text': len(post_text)
         }
         dataset.append(post_record)
         
@@ -107,8 +107,8 @@ def build_dataset(posts_list, comment_limit=10):
                     'text': clean_comment_text,
                     'score': comment.score,
                     'link_id': f"post_{submission.id}",
-                    'source': 'reddit',
-                    'created_at': comment.created_utc
+                    'flair': (getattr(submission, 'link_flair_text', '') or '').lower(),
+                    'len_text': len(clean_comment_text)
                 }
                 dataset.append(comment_record)
     
