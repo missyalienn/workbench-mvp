@@ -1,13 +1,8 @@
 #Embeddings Dev Sandbox
 
-
 from openai import OpenAI
-import os
 import keyring
 import json
-from dotenv import load_dotenv
-
-load_dotenv()
 
 api_key = keyring.get_password("openai-key", "dev")
 client = OpenAI(api_key=api_key)

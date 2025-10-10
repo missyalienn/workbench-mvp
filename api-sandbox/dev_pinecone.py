@@ -7,6 +7,7 @@ from pinecone import Pinecone, ServerlessSpec
 pc_key = keyring.get_password("pinecone-api-key", "dev")
 pc = Pinecone(api_key=pc_key)
 
+#Create index
 index_name = "workbench-mvp"
 
 try: 
@@ -31,3 +32,13 @@ try:
         print(f"⚠️ Index already exists: {index_name}")
 except Exception as e: 
     print(f"❌ Index creation failed: {type(e).__name__} - {e}")
+
+#Experimental - Get index
+#take index_name as param 
+#use pinecone client to get the index object (pc.Index(index_name))
+#return the object 
+
+def get_index(index_name: str): 
+    pc_key = keyring.get_password("pinecone-api-key", "dev")
+    pc = Pinecone(api_key=pc_key)
+    return pc.Index(index_name)

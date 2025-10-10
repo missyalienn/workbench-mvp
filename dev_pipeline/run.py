@@ -7,8 +7,6 @@ import json
 import time
 import re
 from math import e
-from dotenv import load_dotenv
-
 import praw
 import tiktoken
 from openai import OpenAI
