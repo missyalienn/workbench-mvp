@@ -1,4 +1,4 @@
-import os 
+
 import praw
 import json
 import time
@@ -6,16 +6,10 @@ import re
 from html import unescape
 from html.parser import HTMLParser
 from markdown_it import MarkdownIt
-from dotenv import load_dotenv
-import keyring
+from clients import get_reddit_client
 
-# Load environment variables
-load_dotenv()
 
-#Get Reddit API creds from KeyRing
-client_id = keyring.get_password("reddit-client-id", "reddit-api")
-client_secret = keyring.get_password("reddit-client-secret", "reddit-api")
-user_agent = "TestScript/1.0 by /u/chippetto90"
+reddit= get_reddit_client()
 
 ALLOWED_FLAIRS = {"help", "question", "advice", "how to"}
 TITLE_KEYWORDS = ("how", "what", "why", "can", "should", "best way", "need help")
@@ -48,12 +42,6 @@ def _sanitize_text(text: str) -> str:
     unescaped = unescape(no_urls)
     return WHITESPACE_PATTERN.sub(" ", unescaped).strip()
 
-# Initialize Reddit client
-reddit = praw.Reddit(
-    client_id=client_id,
-    client_secret=client_secret,
-    user_agent=user_agent,
-)
 
 def fetch_posts(reddit, limit=10):
     """Fetch top posts from r/diy subreddit with rate limiting."""
@@ -160,7 +148,7 @@ def save_jsonl(dataset, filename="reddit_data.jsonl", batch_size=100):
 def main():
     """Main function to orchestrate the Reddit data pipeline."""
     print("Starting Reddit data pipeline...")
-    print(f"User Agent: {user_agent}")
+    #print(f"User Agent: {user_agent}")
     
     # Try to fetch 2 posts from given subreddit to validate credentials
     try:
@@ -202,4 +190,26 @@ def main_small_run():
 
 if __name__ == "__main__":
     #main()
-    main_small_run()
+    #main_small_run()
+    print("🔧 Running quick Reddit + cleaning test...")
+
+    reddit = get_reddit_client()
+    print("✅ Reddit client authenticated:", reddit.read_only)
+
+    # Pick a subreddit and limit
+    subreddit = reddit.subreddit("diy")
+    posts = subreddit.top(time_filter="year", limit=10)
+
+    for post in posts:
+        raw_text = f"{post.title}\n\n{post.selftext or ''}"
+        cleaned_text = clean_text(raw_text)  # use your refactored cleaner here
+
+        print("\n" + "=" * 80)
+        print(f"Title: {post.title}")
+        print(f"Flair: {post.link_flair_text}")
+        print("\nRaw:\n", raw_text[:250], "..." if len(raw_text) > 250 else "")
+        print("\nCleaned:\n", cleaned_text[:250], "..." if len(cleaned_text) > 250 else "")
+        print("=" * 80)
+
+    print("\n✅ Test complete. No JSONL written.\n")  
+
