@@ -12,33 +12,64 @@ md = MarkdownIt()
 #Initialize Reddit Client 
 reddit= get_reddit_client()
 
-ALLOWED_FLAIRS = {"help", "question", "advice", "how to"}
-TITLE_KEYWORDS = ("how", "what", "why", "can", "should", "best way", "need help")
+ALLOWED_FLAIRS = {"home improvement", "help", "other", "woodworking"}
+TITLE_PATTERNS = re.compile(
+    r"\b(how|what|why|where|can|should|best way|need|help|advice|fix|repair|install|problem)\b",
+    re.I)
+
+def include_post(submission) -> bool:
+    """Keep only text-based instructional content."""
+    
+    flair = (getattr(submission, 'link_flair_text', '') or '').lower()
+    title = getattr(submission, "title", "") or ""
+    body  = getattr(submission, "selftext", "") or ""
+
+    # Require sufficient text content
+    clean_body = clean_text(body)
+    if len(clean_body) < 20:
+        return False
+
+    # Include if flair matches or title has instructional intent
+    title_matches = bool(TITLE_PATTERNS.search(submission.title))
+    return (flair in ALLOWED_FLAIRS) or title_matches or (flair == "" and title_matches)
+
 
 #Fetch posts 
-def fetch_posts(reddit, limit=10):
-    """Fetch top posts from r/diy subreddit with rate limiting."""
-    print(f"Fetching top {limit} posts from r/diy...")
+def fetch_posts(reddit, limit=20):
+   
+    print(f"Fetching up to {limit} post candidates from r/diy...")
     posts_list = []
     subreddit = reddit.subreddit("diy")
     
-    for i, submission in enumerate(subreddit.top(time_filter="year", limit=limit)):
+    query = "how OR fix OR repair OR help OR advice OR why OR can OR should"
+
+    for i, submission in enumerate(subreddit.search(query, sort="new", limit=limit)):
         posts_list.append(submission)
-        if (i + 1) % 100 == 0:
-            print(f"Fetched {i + 1} posts...")
-        time.sleep(1.2)  # Respect Reddit API limits
+        time.sleep(0.6)  # Respect Reddit API limits
     
-    print(f"Successfully fetched {len(posts_list)} posts")
+    print(f"Successfully fetched {len(posts_list)} posts matching query.")
     return posts_list
 
 #Fetch comments
-def fetch_comments(submission, limit=10):
-    """Fetch top comments for a given submission."""
+def fetch_comments(submission, limit=20, min_score=3, min_words=15):
+    """Fetch high-quality top-level comments for MVP efficiency."""
     try:
-        # Expand "MoreComments" objects to access all comments with threshold filtering
-        submission.comments.replace_more(limit=0, threshold=2)
-        # Use .list() to get flattened comment structure and slice to limit
-        return list(submission.comments.list()[:limit])
+        submission.comment_sort = "top"
+        submission.comments.replace_more(limit=5, threshold=1)
+        
+        comments = []
+        for comment in submission.comments:
+            body = getattr(comment, 'body', '').strip()
+            words = body.split()
+            
+            if (body and comment.is_root and 
+                body not in ['[removed]', '[deleted]'] and
+                not getattr(comment, 'stickied', False) and
+                comment.score >= min_score and len(words) >= min_words):
+                comments.append(comment)
+                if len(comments) >= limit:
+                    break
+        return comments
     except Exception as e:
         print(f"Error fetching comments for post {submission.id}: {e}")
         return []
@@ -64,7 +95,7 @@ def clean_text(text):
     return text
 
 #Build Dataset
-def build_dataset(posts_list, comment_limit=10):
+def build_dataset(posts_list, comment_limit=20):
     """Build flat dataset from posts and their comments."""
     print("Building dataset...")
     dataset = []
@@ -135,8 +166,7 @@ def save_jsonl(dataset, filename="reddit_data.jsonl", batch_size=100):
 def main():
     """Main function to orchestrate the Reddit data pipeline."""
     print("Starting Reddit data pipeline...")
-    #print(f"User Agent: {user_agent}")
-    
+
     # Try to fetch 2 posts from given subreddit to validate credentials
     try:
         subreddit = reddit.subreddit("diy")
@@ -152,17 +182,6 @@ def main():
         print(f"Reddit API authentication failed: {e}")
         print("Unable to fetch posts from subreddit. Check your Reddit API credentials.")
         return
-    
-    # Fetch posts
-    posts_list = fetch_posts(reddit, limit=5)
-    
-    # Build dataset
-    dataset = build_dataset(posts_list, comment_limit=5)
-    
-    # Save to JSONL
-    save_jsonl(dataset, filename="reddit_data.jsonl")
-    
-    print("Pipeline completed successfully!")
 
 def main_small_run():
     """Fetch a small test dataset: 5 posts, 5 comments per post."""
@@ -170,51 +189,28 @@ def main_small_run():
     
     posts_list = fetch_posts(reddit, limit=5)            # 5 posts
     dataset = build_dataset(posts_list, comment_limit=5) # 5 comments per post
-    save_jsonl(dataset, filename="reddit_data_small.jsonl")
-    
+    #save_jsonl(dataset, filename="reddit_data_small.jsonl")
     print("Small dataset pipeline completed successfully!")
 
-
 if __name__ == "__main__":
-    # Test clean_text() with sample Markdown strings
-    print("🧪 Testing clean_text() with sample Markdown...")
-    
-    test_samples = [
-        "This is **bold text** and *italic text* with a [link to Reddit](https://reddit.com)",
-        "Here's a list:\n- Item 1\n- Item 2\n- Item 3\n\nAnd some `code` with ~~strikethrough~~",
-        "Check out https://example.com and [another link](https://github.com) for more info"
-    ]
-    
-    for i, sample in enumerate(test_samples, 1):
-        cleaned = clean_text(sample)
-        print(f"\n--- Test {i} ---")
-        print(f"Input:  {sample}")
-        print(f"Output: {cleaned}")
-    
-    print("\n✅ Clean text test complete!\n")
-    
-    # Uncomment below for Reddit pipeline test
-    # #main()
-    # #main_small_run()
-    # print("🔧 Running quick Reddit + cleaning test...")
-    # 
-    # reddit = get_reddit_client()
-    # print("✅ Reddit client authenticated:", reddit.read_only)
-    # 
-    # # Pick a subreddit and limit
-    # subreddit = reddit.subreddit("diy")
-    # posts = subreddit.top(time_filter="year", limit=10)
-    # 
-    # for post in posts:
-    #     raw_text = f"{post.title}\n\n{post.selftext or ''}"
-    #     cleaned_text = clean_text(raw_text)  # use your refactored cleaner here
-    # 
-    #     print("\n" + "=" * 80)
-    #     print(f"Title: {post.title}")
-    #     print(f"Flair: {post.link_flair_text}")
-    #     print("\nRaw:\n", raw_text[:250], "..." if len(raw_text) > 250 else "")
-    #     print("\nCleaned:\n", cleaned_text[:250], "..." if len(cleaned_text) > 250 else "")
-    #     print("=" * 80)
-    # 
-    # print("\n✅ Test complete. No JSONL written.\n")  
+    start_time = time.time()
+    reddit = get_reddit_client()
+    #print("✅ Reddit client authenticated:", reddit.read_only)
+    subreddit = reddit.subreddit("diy")
+    posts = fetch_posts(reddit, limit=20)
 
+    filtered_posts = [p for p in posts if include_post(p)]
+    print(f"\n✅ Included {len(filtered_posts)}/{len(posts)} posts after filtering.\n")
+
+    print("Included posts:\n")
+    for p in filtered_posts:
+        print(f"✅ {p.title} | Flair: {(p.link_flair_text or '').lower()}")
+    print("\n---\nExcluded posts:\n")
+    for p in posts:
+        if p not in filtered_posts:
+            print(f"❌ {p.title} | Flair: {(p.link_flair_text or '').lower()}")
+    print(f"\n✅ Included {len(filtered_posts)} posts after filtering.\n")
+    
+    end_time = time.time()
+    elapsed = end_time - start_time
+    print(f"⏱️ Total runtime: {elapsed:.2f} seconds\n")
