@@ -1,9 +1,13 @@
-import os
-import praw
+
 import json
 import time
 import re
 from clients import get_reddit_client
+from bs4 import BeautifulSoup
+from markdown_it import MarkdownIt
+
+# Initialize MarkdownIt instance
+md = MarkdownIt()
 
 #Initialize Reddit Client 
 reddit= get_reddit_client()
@@ -44,19 +48,17 @@ def clean_text(text):
     """Clean text by removing URLs, markdown formatting, and normalizing whitespace."""
     if not text:
         return ""
-     # Remove URLs
+    
+    # Convert Markdown to HTML first
+    text = md.render(text)
+    
+    # Parse HTML with BeautifulSoup and extract text
+    soup = BeautifulSoup(text, 'html.parser')
+    text = soup.get_text(" ")
+    
+    # Remove URLs
     text = re.sub(r'https?://\S+', '', text)
-    # Remove markdown links but keep the text
-    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-    # Remove bold markdown
-    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
-    # Remove italic markdown
-    text = re.sub(r'\*([^*]+)\*', r'\1', text)
-    # Remove strikethrough
-    text = re.sub(r'~~([^~]+)~~', r'\1', text)
-    # Remove code blocks
-    text = re.sub(r'`([^`]+)`', r'\1', text)
-    # Normalize whitespace and remove newlines
+    # Normalize whitespace
     text = re.sub(r'\s+', ' ', text).strip()
     
     return text
@@ -174,27 +176,45 @@ def main_small_run():
 
 
 if __name__ == "__main__":
-    #main()
-    #main_small_run()
-    print("🔧 Running quick Reddit + cleaning test...")
-
-    reddit = get_reddit_client()
-    print("✅ Reddit client authenticated:", reddit.read_only)
-
-    # Pick a subreddit and limit
-    subreddit = reddit.subreddit("diy")
-    posts = subreddit.top(time_filter="year", limit=10)
-
-    for post in posts:
-        raw_text = f"{post.title}\n\n{post.selftext or ''}"
-        cleaned_text = clean_text(raw_text)  # use your refactored cleaner here
-
-        print("\n" + "=" * 80)
-        print(f"Title: {post.title}")
-        print(f"Flair: {post.link_flair_text}")
-        print("\nRaw:\n", raw_text[:250], "..." if len(raw_text) > 250 else "")
-        print("\nCleaned:\n", cleaned_text[:250], "..." if len(cleaned_text) > 250 else "")
-        print("=" * 80)
-
-    print("\n✅ Test complete. No JSONL written.\n")  
+    # Test clean_text() with sample Markdown strings
+    print("🧪 Testing clean_text() with sample Markdown...")
+    
+    test_samples = [
+        "This is **bold text** and *italic text* with a [link to Reddit](https://reddit.com)",
+        "Here's a list:\n- Item 1\n- Item 2\n- Item 3\n\nAnd some `code` with ~~strikethrough~~",
+        "Check out https://example.com and [another link](https://github.com) for more info"
+    ]
+    
+    for i, sample in enumerate(test_samples, 1):
+        cleaned = clean_text(sample)
+        print(f"\n--- Test {i} ---")
+        print(f"Input:  {sample}")
+        print(f"Output: {cleaned}")
+    
+    print("\n✅ Clean text test complete!\n")
+    
+    # Uncomment below for Reddit pipeline test
+    # #main()
+    # #main_small_run()
+    # print("🔧 Running quick Reddit + cleaning test...")
+    # 
+    # reddit = get_reddit_client()
+    # print("✅ Reddit client authenticated:", reddit.read_only)
+    # 
+    # # Pick a subreddit and limit
+    # subreddit = reddit.subreddit("diy")
+    # posts = subreddit.top(time_filter="year", limit=10)
+    # 
+    # for post in posts:
+    #     raw_text = f"{post.title}\n\n{post.selftext or ''}"
+    #     cleaned_text = clean_text(raw_text)  # use your refactored cleaner here
+    # 
+    #     print("\n" + "=" * 80)
+    #     print(f"Title: {post.title}")
+    #     print(f"Flair: {post.link_flair_text}")
+    #     print("\nRaw:\n", raw_text[:250], "..." if len(raw_text) > 250 else "")
+    #     print("\nCleaned:\n", cleaned_text[:250], "..." if len(cleaned_text) > 250 else "")
+    #     print("=" * 80)
+    # 
+    # print("\n✅ Test complete. No JSONL written.\n")  
 
