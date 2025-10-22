@@ -1,5 +1,6 @@
 # Custom project files
 AGENTS.md
+00-notes/01-sys-design.md
 
 # Data files
 *.jsonl
