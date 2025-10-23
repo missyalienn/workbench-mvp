@@ -26,7 +26,7 @@ def include_post(submission) -> bool:
     if len(clean_body) < 20:
         return False
     title_matches = bool(TITLE_PATTERNS.search(title))
-    return (flair in ALLOWED_FLAIRS) and title_matches or (flair == "" and title_matches)
+    return ((flair in ALLOWED_FLAIRS) and title_matches) or (flair == "" and title_matches)
 
 #Fetch posts 
 def fetch_posts(reddit, limit=20):
