@@ -2,44 +2,40 @@
 import json
 import time
 import re
+from utils.constants import (
+    DEFAULT_SUBREDDIT, 
+    DEFAULT_SEARCH_QUERY, 
+    ALLOWED_FLAIRS, 
+    TITLE_PATTERNS)
+
 from bs4 import BeautifulSoup
 from markdown_it import MarkdownIt
 
 # Initialize MarkdownIt instance
 md = MarkdownIt()
 
-ALLOWED_FLAIRS = {"home improvement", "help", "other", "woodworking"}
-TITLE_PATTERNS = re.compile(
-    r"\b(how|what|why|where|can|should|best way|need|help|advice|fix|repair|install|problem)\b",
-    re.I)
-
+#Filters to keep only text-based instructional posts. 
 def include_post(submission) -> bool:
-    """Keep only text-based instructional content."""
-    
-    flair = (getattr(submission, 'link_flair_text', '') or '').lower()
-    #title = getattr(submission, "title", "") or ""
+
+    flair = (getattr(submission, 'link_flair_text', "") or '').lower()
+    title = (getattr(submission, "title", "") or "").lower()
     body  = getattr(submission, "selftext", "") or ""
 
     # Require sufficient text content
     clean_body = clean_text(body)
     if len(clean_body) < 20:
         return False
-
-    # Include if flair matches or title has instructional intent
-    title_matches = bool(TITLE_PATTERNS.search(submission.title))
-    return (flair in ALLOWED_FLAIRS) or title_matches or (flair == "" and title_matches)
-
+    title_matches = bool(TITLE_PATTERNS.search(title))
+    return (flair in ALLOWED_FLAIRS) and title_matches or (flair == "" and title_matches)
 
 #Fetch posts 
 def fetch_posts(reddit, limit=20):
 
-    print(f"Fetching up to {limit} post candidates from r/diy...")
+    print(f"Fetching up to {limit} post candidates from r/{DEFAULT_SUBREDDIT}.")
     posts_list = []
-    subreddit = reddit.subreddit("diy")
+    subreddit = reddit.subreddit(DEFAULT_SUBREDDIT)
     
-    query = "how OR fix OR repair OR help OR advice OR why OR can OR should"
-
-    for i, submission in enumerate(subreddit.search(query, sort="new", limit=limit)):
+    for submission in subreddit.search(DEFAULT_SEARCH_QUERY, sort="new", limit=limit):
         posts_list.append(submission)
         time.sleep(0.6)  # Respect Reddit API limits
     
