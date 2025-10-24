@@ -2,21 +2,23 @@
 import json
 import time
 import re
+from bs4 import BeautifulSoup
+from markdown_it import MarkdownIt
 from utils.constants import (
     DEFAULT_SUBREDDIT, 
     DEFAULT_SEARCH_QUERY, 
     ALLOWED_FLAIRS, 
     TITLE_PATTERNS)
+from config.logging_config import get_logger
 
-from bs4 import BeautifulSoup
-from markdown_it import MarkdownIt
+logger = get_logger(__name__)
 
 # Initialize MarkdownIt instance
 md = MarkdownIt()
 
 #Filters to keep only text-based instructional posts. 
 def include_post(submission) -> bool:
-
+    """Define submission inclusion rules to ensure quality posts for dataset"""
     flair = (getattr(submission, 'link_flair_text', "") or '').lower()
     title = (getattr(submission, "title", "") or "").lower()
     body  = getattr(submission, "selftext", "") or ""
@@ -24,29 +26,36 @@ def include_post(submission) -> bool:
     # Require sufficient text content
     clean_body = clean_text(body)
     if len(clean_body) < 20:
+        logger.debug("Rejected: body too short (<20 chars)")
         return False
+        
     title_matches = bool(TITLE_PATTERNS.search(title))
     return ((flair in ALLOWED_FLAIRS) and title_matches) or (flair == "" and title_matches)
-
+    
 #Fetch posts 
 def fetch_posts(reddit, limit=20):
-
-    print(f"Fetching up to {limit} post candidates from r/{DEFAULT_SUBREDDIT}.")
+    """Fetch up to `limit` posts from a subreddit with default search query and sorting."""
+    logger.info("Fetching up to %d posts from r/%s.", limit, DEFAULT_SUBREDDIT)
+    
     posts_list = []
     subreddit = reddit.subreddit(DEFAULT_SUBREDDIT)
     
     for submission in subreddit.search(DEFAULT_SEARCH_QUERY, sort="new", limit=limit):
         posts_list.append(submission)
-        time.sleep(0.6)  # Respect Reddit API limits
+        time.sleep(0.6)  # Respect Reddit API rate limits
     
-    print(f"Successfully fetched {len(posts_list)} posts matching query.")
+    logger.info("Successfully fetched %d posts matching query.", len(posts_list))
     return posts_list
 
 #Fetch comments
 def fetch_comments(submission, limit=20, min_score=3, min_words=15):
     """Fetch up to `limit` high-quality top-level comments from a submission."""
     submission.comment_sort = "top"
-    submission.comments.replace_more(limit=5, threshold=1)
+    try: 
+        submission.comments.replace_more(limit=5, threshold=1)
+    except Exception as exc:
+        logger.error("replace more failed for post_%s:%s", submission.id, exc)
+        return []
 
     comments = []
     for c in submission.comments:
@@ -67,8 +76,12 @@ def fetch_comments(submission, limit=20, min_score=3, min_words=15):
 
         if len(comments) >= limit:
             break
-
-    print(f"Fetched {len(comments)} comments from post '{submission.title[:50]}...'")
+    logger.info(
+        "Fetched %d comments for post_%s (limit=%d)",
+        len(comments),
+        submission.id,
+        limit,
+    )
     return comments
 
 #Clean Text
@@ -94,7 +107,8 @@ def clean_text(text):
 #Build Dataset
 def build_dataset(posts_list, comment_limit=20):
     """Build flat dataset from posts and their comments."""
-    print("Building dataset...")
+    logger.info("Building dataset...")
+
     dataset = []
     
     for i, submission in enumerate(posts_list):
@@ -135,12 +149,13 @@ def build_dataset(posts_list, comment_limit=20):
                 }
             dataset.append(comment_record)
     
-    print(f"Dataset created. Total: {len(dataset)} records")
+    logger.info( "Dataset created. Total: %d records", len(dataset))
+
     return dataset
 
 def save_jsonl(dataset, filename="reddit_data.jsonl", batch_size=100):
     """Save dataset to JSONL file in batches."""
-    print(f"Saving dataset to {filename} in batches of {batch_size}...")
+    logger.info("Saving dataset to %s in batches of %d", filename, batch_size)
     
     # Clear the file first
     with open(filename, 'w', encoding='utf-8') as f:
@@ -156,7 +171,11 @@ def save_jsonl(dataset, filename="reddit_data.jsonl", batch_size=100):
                 json.dump(record, f, ensure_ascii=False)
                 f.write('\n')  # One record per line
         
-        print(f"Saved batch {i//batch_size + 1}/{(len(dataset) + batch_size - 1)//batch_size} ({len(batch)} records)")
-    
-    print(f"Dataset saved to {filename} ({len(dataset)} total records)")
+        logger.info(
+            "Saved batch %d/%d (%d records)",
+            i // batch_size + 1,
+            (len(dataset) + batch_size - 1) // batch_size,
+            len(batch),
+        )
+    logger.info("Dataset saved to %s. Total records: %d", filename, len(dataset))
 
