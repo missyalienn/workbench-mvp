@@ -1,77 +1,114 @@
-import os 
-import praw
+
 import json
 import time
 import re
-from dotenv import load_dotenv
-import keyring
+from bs4 import BeautifulSoup
+from markdown_it import MarkdownIt
+from utils.constants import (
+    DEFAULT_SUBREDDIT, 
+    DEFAULT_SEARCH_QUERY, 
+    ALLOWED_FLAIRS, 
+    TITLE_PATTERNS)
+from config.logging_config import get_logger
 
-# Load environment variables
-load_dotenv()
+logger = get_logger(__name__)
 
-#Get Reddit API creds from KeyRing
-client_id = keyring.get_password("reddit-client-id", "reddit-api")
-client_secret = keyring.get_password("reddit-client-secret", "reddit-api")
-user_agent = "TestScript/1.0 by /u/chippetto90"
+# Initialize MarkdownIt instance
+md = MarkdownIt()
 
-# Initialize Reddit client
-reddit = praw.Reddit(
-    client_id=client_id,
-    client_secret=client_secret,
-    user_agent=user_agent,
-)
+#Filters to keep only text-based instructional posts. 
+def include_post(submission) -> bool:
+    """Define submission inclusion rules to ensure quality posts for dataset"""
+    flair = (getattr(submission, 'link_flair_text', "") or '').lower()
+    title = (getattr(submission, "title", "") or "").lower()
+    body  = getattr(submission, "selftext", "") or ""
 
-def fetch_posts(reddit, limit=10):
-    """Fetch top posts from r/diy subreddit with rate limiting."""
-    print(f"Fetching top {limit} posts from r/diy...")
+    # Require sufficient text content
+    clean_body = clean_text(body)
+    if len(clean_body) < 20:
+        logger.debug("Rejected: body too short (<20 chars)")
+        return False
+        
+    title_matches = bool(TITLE_PATTERNS.search(title))
+    return ((flair in ALLOWED_FLAIRS) and title_matches) or (flair == "" and title_matches)
+    
+#Fetch posts 
+def fetch_posts(reddit, limit=20):
+    """Fetch up to `limit` posts from a subreddit with default search query and sorting."""
+    logger.info("Fetching up to %d posts from r/%s.", limit, DEFAULT_SUBREDDIT)
+    
     posts_list = []
-    subreddit = reddit.subreddit("diy")
+    subreddit = reddit.subreddit(DEFAULT_SUBREDDIT)
     
-    for i, submission in enumerate(subreddit.top(time_filter="year", limit=limit)):
+    for submission in subreddit.search(DEFAULT_SEARCH_QUERY, sort="new", limit=limit):
         posts_list.append(submission)
-        if (i + 1) % 100 == 0:
-            print(f"Fetched {i + 1} posts...")
-        time.sleep(1.2)  # Respect Reddit API limits
+        time.sleep(0.6)  # Respect Reddit API rate limits
     
-    print(f"Successfully fetched {len(posts_list)} posts")
+    logger.info("Successfully fetched %d posts matching query.", len(posts_list))
     return posts_list
 
-def fetch_comments(submission, limit=10):
-    """Fetch top comments for a given submission."""
-    try:
-        # Expand "MoreComments" objects to access all comments with threshold filtering
-        submission.comments.replace_more(limit=0, threshold=2)
-        # Use .list() to get flattened comment structure and slice to limit
-        return list(submission.comments.list()[:limit])
-    except Exception as e:
-        print(f"Error fetching comments for post {submission.id}: {e}")
+#Fetch comments
+def fetch_comments(submission, limit=20, min_score=3, min_words=15):
+    """Fetch up to `limit` high-quality top-level comments from a submission."""
+    submission.comment_sort = "top"
+    try: 
+        submission.comments.replace_more(limit=5, threshold=1)
+    except Exception as exc:
+        logger.error("replace more failed for post_%s:%s", submission.id, exc)
         return []
 
+    comments = []
+    for c in submission.comments:
+        body = (getattr(c, "body", "") or "").strip()
+        author = getattr(c, "author", None)
+        name = getattr(author, "name", "").lower() if author else ""
+
+        if (
+            body
+            and body not in ("[removed]", "[deleted]")
+            and not getattr(c, "stickied", False)
+            and "bot" not in name
+            and name != "automoderator"
+            and getattr(c, "score", 0) >= min_score
+            and len(body.split()) >= min_words
+        ):
+            comments.append(c)
+
+        if len(comments) >= limit:
+            break
+    logger.info(
+        "Fetched %d comments for post_%s (limit=%d)",
+        len(comments),
+        submission.id,
+        limit,
+    )
+    return comments
+
+#Clean Text
 def clean_text(text):
     """Clean text by removing URLs, markdown formatting, and normalizing whitespace."""
     if not text:
         return ""
     
+    # Convert Markdown to HTML first
+    text = md.render(text)
+    
+    # Parse HTML with BeautifulSoup and extract text
+    soup = BeautifulSoup(text, 'html.parser')
+    text = soup.get_text(" ")
+    
     # Remove URLs
     text = re.sub(r'https?://\S+', '', text)
-    # Remove markdown links but keep the text
-    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-    # Remove bold markdown
-    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
-    # Remove italic markdown
-    text = re.sub(r'\*([^*]+)\*', r'\1', text)
-    # Remove strikethrough
-    text = re.sub(r'~~([^~]+)~~', r'\1', text)
-    # Remove code blocks
-    text = re.sub(r'`([^`]+)`', r'\1', text)
-    # Normalize whitespace and remove newlines
+    # Normalize whitespace
     text = re.sub(r'\s+', ' ', text).strip()
     
     return text
 
-def build_dataset(posts_list, comment_limit=10):
+#Build Dataset
+def build_dataset(posts_list, comment_limit=20):
     """Build flat dataset from posts and their comments."""
-    print("Building dataset...")
+    logger.info("Building dataset...")
+
     dataset = []
     
     for i, submission in enumerate(posts_list):
@@ -100,24 +137,25 @@ def build_dataset(posts_list, comment_limit=10):
         # Create comment records (flat structure)
         for comment in comments:
             clean_comment_text = clean_text(comment.body)
-            if clean_comment_text:  # Only add non-empty comments
-                comment_record = {
-                    'id': f"comment_{comment.id}",
-                    'type': 'comment',
-                    'text': clean_comment_text,
-                    'score': comment.score,
-                    'link_id': f"post_{submission.id}",
-                    'flair': (getattr(submission, 'link_flair_text', '') or '').lower(),
-                    'len_text': len(clean_comment_text)
+            comment_record = {
+                'id': f"comment_{comment.id}",
+                'type': 'comment',
+                'text': clean_comment_text,
+                'score': comment.score,
+                'url': f"https://reddit.com{comment.permalink}",
+                'link_id': f"post_{submission.id}",
+                'flair': (getattr(submission, 'link_flair_text', '') or '').lower(),
+                'len_text': len(clean_comment_text)
                 }
-                dataset.append(comment_record)
+            dataset.append(comment_record)
     
-    print(f"Dataset built with {len(dataset)} records")
+    logger.info( "Dataset created. Total: %d records", len(dataset))
+
     return dataset
 
 def save_jsonl(dataset, filename="reddit_data.jsonl", batch_size=100):
     """Save dataset to JSONL file in batches."""
-    print(f"Saving dataset to {filename} in batches of {batch_size}...")
+    logger.info("Saving dataset to %s in batches of %d", filename, batch_size)
     
     # Clear the file first
     with open(filename, 'w', encoding='utf-8') as f:
@@ -133,53 +171,11 @@ def save_jsonl(dataset, filename="reddit_data.jsonl", batch_size=100):
                 json.dump(record, f, ensure_ascii=False)
                 f.write('\n')  # One record per line
         
-        print(f"Saved batch {i//batch_size + 1}/{(len(dataset) + batch_size - 1)//batch_size} ({len(batch)} records)")
-    
-    print(f"Dataset saved to {filename} ({len(dataset)} total records)")
+        logger.info(
+            "Saved batch %d/%d (%d records)",
+            i // batch_size + 1,
+            (len(dataset) + batch_size - 1) // batch_size,
+            len(batch),
+        )
+    logger.info("Dataset saved to %s. Total records: %d", filename, len(dataset))
 
-def main():
-    """Main function to orchestrate the Reddit data pipeline."""
-    print("Starting Reddit data pipeline...")
-    print(f"User Agent: {user_agent}")
-    
-    # Try to fetch 2 posts from given subreddit to validate credentials
-    try:
-        subreddit = reddit.subreddit("diy")
-        test_posts = list(subreddit.hot(limit=2))  
-        
-        if test_posts:
-            print("Reddit API authentication successful.")
-        else:
-            print("Reddit API authentication failed: No posts returned")
-            return
-            
-    except Exception as e:
-        print(f"Reddit API authentication failed: {e}")
-        print("Unable to fetch posts from subreddit. Check your Reddit API credentials.")
-        return
-    
-    # Fetch posts
-    posts_list = fetch_posts(reddit, limit=5)
-    
-    # Build dataset
-    dataset = build_dataset(posts_list, comment_limit=5)
-    
-    # Save to JSONL
-    save_jsonl(dataset, filename="reddit_data.jsonl")
-    
-    print("Pipeline completed successfully!")
-
-def main_small_run():
-    """Fetch a small test dataset: 5 posts, 5 comments per post."""
-    print("Starting small Reddit data pipeline...")
-    
-    posts_list = fetch_posts(reddit, limit=5)            # 5 posts
-    dataset = build_dataset(posts_list, comment_limit=5) # 5 comments per post
-    save_jsonl(dataset, filename="reddit_data_small.jsonl")
-    
-    print("Small dataset pipeline completed successfully!")
-
-
-if __name__ == "__main__":
-    #main()
-    main_small_run()
