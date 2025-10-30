@@ -7,6 +7,7 @@ AGENTS.md
 # Data files
 *.jsonl
 reddit_data.jsonl
+data/*.jsonl
 
 # Environments
 .env

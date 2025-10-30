@@ -1,23 +1,18 @@
-import os
 import logging
+import os
 
-# -- Read log level from .env or fallback -- 
-level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_LEVEL = getattr(logging, level_name, logging.INFO)
-
-# -- Setup -- 
-def configure_logging(): 
+def configure_logging() -> None:
     logging.basicConfig(
-    level=LOG_LEVEL,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S"
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        force=True,
     )
-    
-# --Helper function for modules--
-def get_logger(name):
+
+def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
-# -- Example --
+
 if __name__ == "__main__":
     configure_logging()
     log = get_logger(__name__)
