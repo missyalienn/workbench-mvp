@@ -41,7 +41,8 @@ def fetch_posts(reddit, limit=20):
     subreddit = reddit.subreddit(DEFAULT_SUBREDDIT)
     
     for submission in subreddit.search(DEFAULT_SEARCH_QUERY, sort="new", limit=limit):
-        posts_list.append(submission)
+        if include_post(submission): 
+            posts_list.append(submission)
         time.sleep(0.6)  # Respect Reddit API rate limits
     
     logger.info("Successfully fetched %d posts matching query.", len(posts_list))
