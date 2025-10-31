@@ -2,7 +2,8 @@
 AGENTS.md
 00-notes/01-sys-design.md
 /docs/
-
+/00-notes/
+/docs/
 
 # Data files
 *.jsonl
