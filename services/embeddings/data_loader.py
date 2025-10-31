@@ -51,7 +51,7 @@ def load_jsonl_data(file_path: str) -> list[dict]:
 if __name__ == "__main__":
     configure_logging()
     logger.info("Starting data loader runner...")
-    test_path = "data/test_data.jsonl"
+    test_path = "data/reddit_diy_baseline.jsonl"
     records = load_jsonl_data(test_path)
     logger.info(f"Runner loaded {len(records)} valid records.")
 

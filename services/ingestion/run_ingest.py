@@ -36,6 +36,8 @@ def run_ingestion(
     logger.info("Ingestion run complete")
     return dataset
 
+# To run ingestion pipeline AND generate a new jsonl file: pass save_path to run_ingestion() 
+# Ex: run_ingestion(save_path = "data/new_json_file.jsonl")
 
 if __name__ == "__main__":
-    run_ingestion()
+    run_ingestion (save_path="data/reddit_diy_baseline.jsonl") 

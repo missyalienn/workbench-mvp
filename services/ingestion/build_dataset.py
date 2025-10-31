@@ -31,6 +31,7 @@ def build_dataset(posts_list, comment_limit=20):
             'text': title_body_text,
             'score': submission.score,
             'url': f"https://reddit.com{submission.permalink}",
+            'link_id': f"post_{submission.id}",
             'flair': (getattr(submission, 'link_flair_text', '') or '').lower(),
             'len_text': len(title_body_text)
         }
