@@ -217,20 +217,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .vscode/
 z_archive/
+
+# Legacy sandbox (kept locally, untracked)
+z_legacy/
