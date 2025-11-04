@@ -34,7 +34,6 @@ jiter==0.11.1
 joblib==1.5.2
 jupyter_client==8.6.3
 jupyter_core==5.8.1
-keyring==25.6.0
 kiwisolver==1.4.8
 markdown-it-py==4.0.0
 MarkupSafe==3.0.2
@@ -64,7 +63,6 @@ ptyprocess==0.7.0
 pure_eval==0.2.3
 pydantic==2.12.3
 pydantic_core==2.41.4
-pydantic-settings==2.8.0
 Pygments==2.19.1
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
