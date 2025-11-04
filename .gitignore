@@ -3,11 +3,10 @@ AGENTS.md
 00-notes/01-sys-design.md
 /docs/
 
-
-# Data files
-*.jsonl
-reddit_data.jsonl
-data/*.jsonl
+# Ignore logs and temp files
+*.log
+scripts/__pycache__/
+/logs/
 
 # Environments
 .env
@@ -18,6 +17,11 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Data files
+*.jsonl
+reddit_data.jsonl
+data/*.jsonl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
