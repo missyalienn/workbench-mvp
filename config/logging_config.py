@@ -1,19 +1,19 @@
 import logging
-import os
+from config.settings import settings
 
 def configure_logging() -> None:
     """Configure project-wide logging settings."""
-
-    # Read level from .env; default to INFO is missing or invalid 
-    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-    numeric_level = getattr(logging, log_level, logging.INFO)
-
+    numeric_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    
     logging.basicConfig(
         level=numeric_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
+        format=settings.LOG_FORMAT,
+        datefmt=settings.LOG_DATE_FORMAT,
         force=True,
     )
+    # Confirmation message
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging configured at {settings.LOG_LEVEL.upper()} level.")
 
 def get_logger(name: str) -> logging.Logger:
     """Return a named logger for a given module."""
@@ -25,3 +25,4 @@ if __name__ == "__main__":
     log = get_logger(__name__)
     log.info("Info message (should always appear).")
     log.debug("Debug message (appears only if LOG_LEVEL=DEBUG).")
+
