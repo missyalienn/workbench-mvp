@@ -51,7 +51,10 @@ def configure_logging() -> None:
     
     # Suppress noisy third-party library logs
     logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("keyring.backend").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
     
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured at {settings.LOG_LEVEL.upper()} level.")

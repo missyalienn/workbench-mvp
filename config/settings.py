@@ -1,4 +1,5 @@
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 class Settings(BaseSettings):
     """Project-wide settings and configuration."""
@@ -15,9 +16,10 @@ class Settings(BaseSettings):
     MAX_SUBREDDITS: int = 3
     MAX_SEARCH_TERMS: int = 5
 
-
-class Config:
-    env_file = ".env"
-    env_file_encoding = "utf-8"
-
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
+        
 settings = Settings()
