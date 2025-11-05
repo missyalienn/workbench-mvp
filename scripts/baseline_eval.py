@@ -60,7 +60,7 @@ def evaluate_query(query: str) -> dict[str, Any]:
         record.update(
             runtime_seconds=round(perf_counter() - start, 4),
             valid=True,
-            plan_id=plan.plan_id,
+            plan_id=str(plan.plan_id),
         )
     except ValidationError as exc:
         error_message = "; ".join(err["msg"] for err in exc.errors())

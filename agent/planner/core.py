@@ -4,6 +4,7 @@ Core planner logic with single LLM call.
 
 import json
 from uuid import uuid4
+
 from .model import SearchPlan
 from .prompt_templates import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from config.logging_config import get_logger, plan_context_scope
@@ -44,12 +45,13 @@ def create_search_plan(user_query: str) -> SearchPlan:
         raise ValueError("user_query cannot be empty")
     
     # Generate unique plan_id
-    plan_id = str(uuid4())
+    plan_id = uuid4()
+    plan_id_str = str(plan_id)
     
     # Wrap all operations in plan_id context for traceability
-    with plan_context_scope(plan_id):
+    with plan_context_scope(plan_id_str):
         logger.info(f"Received query: {user_query}")
-        logger.debug(f"Generated plan_id: {plan_id}")
+        logger.debug(f"Generated plan_id: {plan_id_str}")
         
         try:
             # Get OpenAI client
@@ -77,7 +79,7 @@ def create_search_plan(user_query: str) -> SearchPlan:
             response_dict = json.loads(raw_content)
             
             # Add plan_id to response dict
-            response_dict["plan_id"] = plan_id
+            response_dict["plan_id"] = plan_id_str
             
             # Create SearchPlan (Pydantic validates)
             plan = SearchPlan(**response_dict)
@@ -93,4 +95,3 @@ def create_search_plan(user_query: str) -> SearchPlan:
         except Exception as e:
             logger.error(f"Failed to generate search plan: {e}")
             raise RuntimeError(f"Search plan generation failed: {e}") from e
-

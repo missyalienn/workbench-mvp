@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 class SearchPlan(BaseModel):
     """Structured plan output from the Planner."""
 
-    plan_id: str = Field(
+    plan_id: UUID = Field(
         description="Unique plan identifier for traceability across planner → fetcher → filters"
     )
     search_terms: list[str] = Field(
@@ -91,17 +91,18 @@ class SearchPlan(BaseModel):
                 break
         return cleaned_terms
 
-    @field_validator("plan_id")
+    @field_validator("plan_id", mode="before")
     @classmethod
-    def validate_plan_id(cls, plan_id: str) -> str:
-        "Ensure plan_id is valid UUID string"
+    def validate_plan_id(cls, plan_id: UUID | str) -> UUID:
+        """Ensure plan_id is always a UUID."""
+        if isinstance(plan_id, UUID):
+            return plan_id
+
         cleaned_plan_id = plan_id.strip()
-        if not cleaned_plan_id: 
+        if not cleaned_plan_id:
             raise ValueError("plan_id cannot be empty")
-        
-        try: 
-            UUID(cleaned_plan_id)
-        except ValueError as exc: 
+
+        try:
+            return UUID(cleaned_plan_id)
+        except ValueError as exc:
             raise ValueError("plan_id must be a valid UUID string") from exc
-        return cleaned_plan_id
-        
