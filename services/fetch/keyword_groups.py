@@ -15,6 +15,7 @@ KEYWORD_GROUPS = OrderedDict(
                 "assemble",  # kit builds or furniture assembly
                 "repair",  # detailed fix oriented language
                 "instructions",  # explicit request for detailed guidance
+                "fix",  # general repair or troubleshooting phrasing
             ],
         },
         "troubleshooting_repair": {
@@ -28,6 +29,9 @@ KEYWORD_GROUPS = OrderedDict(
                 "shorted",  # electrical fault
                 "cracked",  # structural damage needing advice
                 "broken",  # general failure state
+                "scratched",  # surface damage requiring advice
+                "dented",  # structural damage requiring advice
+                "damage",  # general damage state requiring advice
             ],
         },
         "question_driven": {
@@ -42,7 +46,7 @@ KEYWORD_GROUPS = OrderedDict(
                 "looking for advice",  # explicit help request
             ],
         },
-        "materials_tools": {
+        "tools_materials": {
             "rationale": "Surface posts about material choices and tool usage that underpin DIY planning.",
             "keywords": [
                 "plywood",  # common woodworking material
@@ -58,7 +62,7 @@ KEYWORD_GROUPS = OrderedDict(
                 "drill bits",  # consumable tooling
             ],
         },
-        "safety_beginner": {
+        "safety_tips": {
             "rationale": "Identify posts focused on safe execution and first-time maker confidence.",
             "keywords": [
                 "safety gear",  # protective equipment focus
@@ -93,3 +97,22 @@ NEGATIVE_KEYWORDS = OrderedDict(
         }
     }
 )
+
+KEYWORD_WEIGHTS = OrderedDict(
+    {
+        "how_to_instructional": 5.0,
+        "troubleshooting_repair": 4.0,
+        "question_driven": 3.0,
+        "tools_materials": 2.0,
+        "safety_tips": 2.0,
+        "showcase_brag": -6.0,
+    }
+)
+
+MIN_POST_SCORE = 6.0
+
+# TODO: Move these to fetch logic or planner logic.
+#MIN_COMMENT_SCORE = 0.0
+#MIN_POST_UPVOTES = 10
+#MIN_POST_NSFW = False
+#MIN_COMMENT_NSFW = False
