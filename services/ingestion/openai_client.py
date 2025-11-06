@@ -11,7 +11,7 @@ def get_openai_client() -> OpenAI:
     "Return an authenticated OpenAI client using keyring credentials."""
     api_key = keyring.get_password("openai-key", "dev")
 
-    if not all (api_key): 
+    if not api_key: 
         msg = "Missing OpenAI credentials in keyring for environment: dev."
         logger.error(msg)
         raise RuntimeError(msg)

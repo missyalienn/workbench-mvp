@@ -42,7 +42,8 @@ def configure_logging() -> None:
     )
     
     # Choose formatter based on LOG_FORMAT_TYPE
-    if getattr(settings, 'LOG_FORMAT_TYPE', 'text') == 'json':
+    formatter: logging.Formatter
+    if settings.LOG_FORMAT_TYPE == "json":
         formatter = PlanIdJsonFormatter()
     else:
         formatter = PlanIdFormatter(settings.LOG_FORMAT, settings.LOG_DATE_FORMAT)

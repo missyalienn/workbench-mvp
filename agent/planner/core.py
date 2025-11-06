@@ -74,6 +74,8 @@ def create_search_plan(user_query: str) -> SearchPlan:
             
             # Parse LLM response
             raw_content = response.choices[0].message.content
+            if raw_content is None:
+                raise RuntimeError("No content returned from LLM")
             logger.debug(f"LLM response: {raw_content}")
             
             response_dict = json.loads(raw_content)
