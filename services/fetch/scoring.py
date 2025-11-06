@@ -59,7 +59,7 @@ def evaluate_post_relevance(
         else "Post rejected by keyword scoring"
     )
 
-    logger.info(
+    logger.debug(
         log_message,
         extra={
             "post_id": post_id,

@@ -1,0 +1,12 @@
+- **Run:** `manual_score_test_11-06_22-50-50.log`
+  - False negatives:
+    - “How can I safely replace the ceiling light fixture?” scored 0 → add question variants (“How can I…”, “Can I…”, “replace”) so instructional titles match.
+    - “Help with these stupid light switches.” scored 0 → add generic “help” requests to the question-driven group.
+    - “Trying to replace light switches…” only matched “broken” → include “replace/swap/change” verbs in how-to or troubleshooting groups.
+  - False positives:
+    - Showcase posts (“How I turned a broken NES…”, “New laundry nook…”, “DIY Time Portal”) passed because generic keywords (drill, screws, broken) outweighed the lack of instruction → add anti-keywords (“How I…”, “I made…”, “After/Before”) and lower weights for `tools_materials` and `safety_tips`.
+    - “I made custom closet built-ins…” highlight the need for brag filters (“I made…”, “custom build”) or lower weights for catch-all materials.
+  - Decisions:
+    - Expand question-driven keywords to cover “How can I…”, “Can I…”, “help”, “replace/change/swap”.
+    - Add anti-showcase phrases (“How I…”, “I made…”, “After/Before”, “turned my…”) to `NEGATIVE_KEYWORDS`.
+    - Reduce weight of `tools_materials` and `safety_tips` so they can’t push showcase posts over the threshold alone.

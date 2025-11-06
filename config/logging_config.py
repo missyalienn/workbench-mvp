@@ -56,6 +56,7 @@ def configure_logging() -> None:
     logging.getLogger("keyring.backend").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("markdown_it").setLevel(logging.WARNING)
     
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured at {settings.LOG_LEVEL.upper()} level.")
@@ -81,4 +82,3 @@ if __name__ == "__main__":
     log = get_logger(__name__)
     log.info("Info message (should always appear).")
     log.debug("Debug message (appears only if LOG_LEVEL=DEBUG).")
-
