@@ -8,7 +8,7 @@ from uuid import uuid4
 from .model import SearchPlan
 from .prompt_templates import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from config.logging_config import get_logger, plan_context_scope
-from services.ingestion.openai_client import get_openai_client
+from agent.clients.openai_client import get_openai_client
 
 logger = get_logger(__name__)
 
