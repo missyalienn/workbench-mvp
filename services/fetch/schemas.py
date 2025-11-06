@@ -25,19 +25,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class Comment(BaseModel):
-    """Top-level Reddit comment fetched by RedditFetcher."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    id: str = Field(..., description="Reddit comment ID (submission.id)")
-    body: str = Field(..., description="Cleaned comment text")
-    score: int = Field(..., description="Comment score (quality signal)")
-    source: Literal["reddit"] = Field(
-        default="reddit", description="Data origin identifier"
-    )
-
-
 class Post(BaseModel):
     """Reddit post enriched with instructional metadata and comments."""
 
@@ -46,13 +33,33 @@ class Post(BaseModel):
     id: str = Field(..., description="Reddit post ID (submission.id)")
     title: str = Field(..., description="Cleaned post title")
     selftext: str = Field(..., description="Cleaned body text of the post")
-    score: int = Field(..., description="Reddit score (upvotes - downvotes)")
+    reddit_score: int = Field(..., description="Native Reddit score (upvotes - downvotes)")
+    relevance_score: float = Field(
+        ..., description="Keyword weighting score computed by RedditFetcher"
+    )
+    matched_keywords: list[str] = Field(
+        default_factory=list,
+        description="Keywords that contributed to the relevance score",
+    )
     url: str = Field(..., description="Full Reddit permalink")
-    comments: list[Comment] = Field(
+    comments: list["Comment"] = Field(
         default_factory=list,
         description="Top-level comments meeting quality thresholds",
     )
     fetched_at: float = Field(..., description="UTC timestamp when the post was fetched")
+    source: Literal["reddit"] = Field(
+        default="reddit", description="Data origin identifier"
+    )
+
+
+class Comment(BaseModel):
+    """Top-level Reddit comment fetched by RedditFetcher."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(..., description="Reddit comment ID (submission.id)")
+    body: str = Field(..., description="Cleaned comment text")
+    score: int = Field(..., description="Comment score (quality signal)")
     source: Literal["reddit"] = Field(
         default="reddit", description="Data origin identifier"
     )
