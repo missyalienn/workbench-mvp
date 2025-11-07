@@ -52,7 +52,9 @@ def main() -> None:
             logger.info("Fetching posts for r/%s | search_term='%s'", subreddit, term)
             posts = fetch_posts(session, subreddit, term, args.limit)
             if not posts:
-                logger.warning("No posts returned for r/%s | search_term='%s'", subreddit, term)
+                logger.warning(
+                    "No posts returned for r/%s | search_term='%s'", subreddit, term
+                )
                 continue
 
             for post in posts:
@@ -130,7 +132,9 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def fetch_posts(session: Any, subreddit: str, term: str, limit: int) -> list[dict[str, Any]]:
+def fetch_posts(
+    session: Any, subreddit: str, term: str, limit: int
+) -> list[dict[str, Any]]:
     params = {
         "q": term,
         "limit": limit,

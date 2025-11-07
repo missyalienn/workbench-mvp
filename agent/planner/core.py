@@ -43,54 +43,56 @@ def create_search_plan(user_query: str) -> SearchPlan:
     if not user_query or not user_query.strip():
         logger.error("Empty user_query provided")
         raise ValueError("user_query cannot be empty")
-    
+
     # Generate unique plan_id
     plan_id = uuid4()
     plan_id_str = str(plan_id)
-    
+
     # Wrap all operations in plan_id context for traceability
     with plan_context_scope(plan_id_str):
         logger.info(f"Received query: {user_query}")
         logger.debug(f"Generated plan_id: {plan_id_str}")
-        
+
         try:
             # Get OpenAI client
             client = get_openai_client()
-            
+
             # Format user message
             user_message = USER_PROMPT_TEMPLATE.format(user_query=user_query)
-            
+
             # Call OpenAI API with JSON mode
             logger.debug("Calling OpenAI API for search plan generation")
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_message}
+                    {"role": "user", "content": user_message},
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.7
+                temperature=0.7,
             )
-            
+
             # Parse LLM response
             raw_content = response.choices[0].message.content
             if raw_content is None:
                 raise RuntimeError("No content returned from LLM")
             logger.debug(f"LLM response: {raw_content}")
-            
+
             response_dict = json.loads(raw_content)
-            
+
             # Add plan_id to response dict
             response_dict["plan_id"] = plan_id_str
-            
+
             # Create SearchPlan (Pydantic validates)
             plan = SearchPlan(**response_dict)
-            
+
             logger.info(f"Plan generated successfully [plan_id={plan.plan_id}]")
-            logger.debug(f"Full plan: search_terms={plan.search_terms}, subreddits={plan.subreddits}, notes={plan.notes}")
-            
+            logger.debug(
+                f"Full plan: search_terms={plan.search_terms}, subreddits={plan.subreddits}, notes={plan.notes}"
+            )
+
             return plan
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             raise RuntimeError(f"Invalid JSON response from LLM: {e}") from e

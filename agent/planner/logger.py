@@ -23,4 +23,3 @@ def get_planner_logger(module_name: str):
     TODO: Consider structured logging helpers for plan lifecycle events
     """
     return get_logger(module_name)
-

@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
+
 class Settings(BaseSettings):
     """Project-wide settings and configuration."""
 
@@ -26,7 +27,7 @@ class Settings(BaseSettings):
         description="Log output: 'text' or 'json'",
     )
 
-    # Agent Planner Defaults 
+    # Agent Planner Defaults
     ALLOWED_SUBREDDITS: list[str] = ["diy", "homeimprovement", "woodworking"]
     DEFAULT_SUBREDDITS: list[str] = ["diy"]
     MAX_SUBREDDITS: int = 3
@@ -37,5 +38,6 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
-        
+
+
 settings = Settings()

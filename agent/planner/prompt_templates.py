@@ -30,4 +30,3 @@ Output must be valid JSON matching this schema:
 }"""
 
 USER_PROMPT_TEMPLATE = """User query: {user_query}"""
-

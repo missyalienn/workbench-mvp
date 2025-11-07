@@ -109,4 +109,3 @@ def _decision_reason(
     if negative_matches and not positive_matches:
         return "negative_veto"
     return "below_threshold"
-

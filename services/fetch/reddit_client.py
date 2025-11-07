@@ -4,6 +4,7 @@ Example:
     session = get_reddit_client()
     profile = session.get("https://oauth.reddit.com/api/v1/me").json()
 """
+
 # TODO(mallan): Add unit tests covering token refresh and session header updates.
 
 from __future__ import annotations

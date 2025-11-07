@@ -33,7 +33,9 @@ class Post(BaseModel):
     id: str = Field(..., description="Reddit post ID (submission.id)")
     title: str = Field(..., description="Cleaned post title")
     selftext: str = Field(..., description="Cleaned body text of the post")
-    reddit_score: int = Field(..., description="Native Reddit score (upvotes - downvotes)")
+    reddit_score: int = Field(
+        ..., description="Native Reddit score (upvotes - downvotes)"
+    )
     relevance_score: float = Field(
         ..., description="Keyword weighting score computed by RedditFetcher"
     )
@@ -46,7 +48,9 @@ class Post(BaseModel):
         default_factory=list,
         description="Top-level comments meeting quality thresholds",
     )
-    fetched_at: float = Field(..., description="UTC timestamp when the post was fetched")
+    fetched_at: float = Field(
+        ..., description="UTC timestamp when the post was fetched"
+    )
     source: Literal["reddit"] = Field(
         default="reddit", description="Data origin identifier"
     )
@@ -73,9 +77,7 @@ class FetchResult(BaseModel):
     query: str = Field(
         ..., description="Original user query driving the planner search"
     )
-    plan_id: UUID = Field(
-        ..., description="Identifier for the originating SearchPlan"
-    )
+    plan_id: UUID = Field(..., description="Identifier for the originating SearchPlan")
     search_terms: list[str] = Field(
         default_factory=list, description="Terms used to query Reddit"
     )

@@ -133,7 +133,7 @@ KEYWORD_WEIGHTS = OrderedDict(
 MIN_POST_SCORE = 5.0
 
 # TODO: Move these to fetch logic or planner logic.
-#MIN_COMMENT_SCORE = 0.0
-#MIN_POST_UPVOTES = 10
-#MIN_POST_NSFW = False
-#MIN_COMMENT_NSFW = False
+# MIN_COMMENT_SCORE = 0.0
+# MIN_POST_UPVOTES = 10
+# MIN_POST_NSFW = False
+# MIN_COMMENT_NSFW = False

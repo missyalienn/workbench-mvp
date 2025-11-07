@@ -1,12 +1,14 @@
 """
 Pydantic models for Agent Planner data structures.
 """
+
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 from config.settings import settings
 from config.logging_config import get_logger
 
 logger = get_logger(__name__)
+
 
 class SearchPlan(BaseModel):
     """Structured plan output from the Planner."""
@@ -20,14 +22,11 @@ class SearchPlan(BaseModel):
     subreddits: list[str] = Field(
         description="List of subreddit names without 'r/' prefix (e.g., ['diy', 'homeimprovement'])"
     )
-    notes: str = Field(
-        description="Brief reasoning or context about the search plan"
-    )
+    notes: str = Field(description="Brief reasoning or context about the search plan")
 
     @field_validator("subreddits")
     @classmethod
     def validate_subreddits(cls, subreddits: list[str]) -> list[str]:
-        
         """Validate and normalize subreddit names."""
 
         allowed = {name.lower() for name in settings.ALLOWED_SUBREDDITS}
@@ -36,32 +35,32 @@ class SearchPlan(BaseModel):
 
         if not subreddits:
             logger.warning(f"No subreddits provided. Defaulting to {default}")
-            return default[: max_subreddit_count]
-        
+            return default[:max_subreddit_count]
+
         valid_subreddits: list[str] = []
-        for raw_subreddit in subreddits: 
+        for raw_subreddit in subreddits:
             if not isinstance(raw_subreddit, str):
                 raise TypeError("Subreddit values must be strings")
-            
+
             cleaned_subreddit = raw_subreddit.strip().lower().removeprefix("r/")
 
-            if not cleaned_subreddit or cleaned_subreddit not in allowed: 
-                continue 
-            
-            if cleaned_subreddit not in valid_subreddits: 
+            if not cleaned_subreddit or cleaned_subreddit not in allowed:
+                continue
+
+            if cleaned_subreddit not in valid_subreddits:
                 valid_subreddits.append(cleaned_subreddit)
-            
-        if not valid_subreddits: 
+
+        if not valid_subreddits:
             logger.warning(f"No valid subreddits found. Defaulting to {default}")
             return default[: settings.MAX_SUBREDDITS]
 
-        if len(valid_subreddits) > settings.MAX_SUBREDDITS: 
+        if len(valid_subreddits) > settings.MAX_SUBREDDITS:
             truncated = valid_subreddits[: settings.MAX_SUBREDDITS]
             logger.warning(f"Truncated subreddits to {truncated}")
             valid_subreddits = truncated
 
         return valid_subreddits
-      
+
     @field_validator("search_terms")
     @classmethod
     def validate_search_terms(cls, search_terms: list[str]) -> list[str]:
@@ -71,7 +70,7 @@ class SearchPlan(BaseModel):
         max_term_count = settings.MAX_SEARCH_TERMS
         if not search_terms:
             raise ValueError("search_terms must contain at least one term")
-        
+
         cleaned_terms: list[str] = []
         for raw_term in search_terms:
             if not isinstance(raw_term, str):
