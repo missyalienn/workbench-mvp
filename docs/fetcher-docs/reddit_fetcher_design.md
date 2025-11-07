@@ -122,10 +122,4 @@ This design keeps RedditFetcher lightweight while ensuring retrieval quality and
 - De-duplicate qualifying posts by normalized title or post id, then fetch top-level comments meeting thresholds via same API client.
 - Assemble structured FetchResult with metadata, post/comment models, timestamps, logging for inclusion/exclusion counts; relies on serialization helpers and schema definitions.
 
-## Open questions & potential design gaps
 
-- ✅ Reddit API transport not specified (PRAW vs. REST) and how auth, pagination, and rate limits are configured. Need explicit interface and retry window.
-- Keyword weight table, thresholds (score, upvotes, length), excluded-pattern rules, and normalization/cleaning strategy are undefined; should live in config or versioned YAML.
-- Dedupe heuristic between normalized title and id needs tie-breaking guidance, especially cross-subreddit overlap.
-- Comment selection criteria (sort key, min words, handling deleted/locked threads) not detailed.
-Logging/telemetry expectations (structured logs, metrics counters) and error escalation pathways unspecified.
