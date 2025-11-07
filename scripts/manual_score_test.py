@@ -22,6 +22,7 @@ from services.fetch.text_utils import clean_text
 
 DEFAULT_SUBREDDITS = ["diy"]
 DEFAULT_TERMS = ["leaky faucet fix"]
+SHOWCASE_SCORE_THRESHOLD = 2000
 
 logger = get_logger(__name__)
 
@@ -56,6 +57,15 @@ def main() -> None:
 
             for post in posts:
                 total += 1
+                reddit_score = post.get("score", 0)
+                if reddit_score is not None and reddit_score > SHOWCASE_SCORE_THRESHOLD:
+                    logger.info(
+                        "[REJECTED] r/%s | reddit_score=%s | reason=high_score_threshold | title='%s'",
+                        subreddit,
+                        reddit_score,
+                        post.get("title", "")[:80],
+                    )
+                    continue
                 title = clean_text(post.get("title", ""))
                 body = clean_text(post.get("selftext", ""))
                 relevance, positives, negatives, passed = evaluate_post_relevance(

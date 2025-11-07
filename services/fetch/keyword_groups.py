@@ -7,7 +7,7 @@ KEYWORD_GROUPS = OrderedDict(
         "how_to_instructional": {
             "rationale": "Capture explicit how-to phrasing and verbs that start DIY walkthroughs.",
             "keywords": [
-                "how to",  # direct how-to wording
+                "how can i",  # question phrasing variation
                 "step by step",  # instructions broken into steps
                 "build",  # common DIY action verb
                 "refinish",  # surface preparation projects
@@ -16,6 +16,9 @@ KEYWORD_GROUPS = OrderedDict(
                 "repair",  # detailed fix oriented language
                 "instructions",  # explicit request for detailed guidance
                 "fix",  # general repair or troubleshooting phrasing
+                "replace",  # swapping components or fixtures
+                "swap",  # swapping components or fixtures
+                "change",  # altering hardware or wiring
             ],
         },
         "troubleshooting_repair": {
@@ -32,11 +35,16 @@ KEYWORD_GROUPS = OrderedDict(
                 "scratched",  # surface damage requiring advice
                 "dented",  # structural damage requiring advice
                 "damage",  # general damage state requiring advice
+                "help fix",  # explicit troubleshooting ask
+                "isn't working",  # general failure statement
+                "isnt working",  # apostrophe-free variant
             ],
         },
         "question_driven": {
             "rationale": "Highlight questions seeking advice, best practices, or collective tips.",
             "keywords": [
+                "how to",  # direct how-to wording
+                "how do i",  # explicit question phrasing
                 "any tips",  # open request for suggestions
                 "what's the best way",  # direct process inquiry
                 "should i",  # decision guidance ask
@@ -44,6 +52,11 @@ KEYWORD_GROUPS = OrderedDict(
                 "is it possible to",  # feasibility check
                 "recommendations for",  # product or approach referrals
                 "looking for advice",  # explicit help request
+                "can i",  # feasibility check phrasing
+                "how can i",  # alternative how-to phrasing
+                "need help",  # generic help request
+                "please help",  # explicit help request
+                "any help",  # open-ended help wording
             ],
         },
         "tools_materials": {
@@ -93,6 +106,14 @@ NEGATIVE_KEYWORDS = OrderedDict(
                 "i built",  # explicit build announcement
                 "i made",  # explicit make announcement
                 "i finished",  # explicit finish announcement
+                "how i",  # story headline signaling showcase
+                "how i turned",  # bragging transformation intro
+                "how i figured out",  # story headline brag
+                "turned my",  # transformation brag
+                "turned a",  # transformation brag
+                "custom build",  # portfolio terminology
+                "after/before",  # reversed showcase wording
+                "before/after",  # typical showcase phrasing
             ],
         }
     }
@@ -103,13 +124,13 @@ KEYWORD_WEIGHTS = OrderedDict(
         "how_to_instructional": 5.0,
         "troubleshooting_repair": 4.0,
         "question_driven": 3.0,
-        "tools_materials": 2.0,
-        "safety_tips": 2.0,
+        "tools_materials": 0.0,
+        "safety_tips": 0.0,
         "showcase_brag": -6.0,
     }
 )
 
-MIN_POST_SCORE = 6.0
+MIN_POST_SCORE = 5.0
 
 # TODO: Move these to fetch logic or planner logic.
 #MIN_COMMENT_SCORE = 0.0
