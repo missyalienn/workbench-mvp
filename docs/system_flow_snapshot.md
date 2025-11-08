@@ -1,8 +1,11 @@
 # Workbench Reddit Assistant Flow (Snapshot)
 
+**Current Vision (v1):** Collect the most relevant Reddit posts + permalinks, then have the agent present a curated list with short theme bullets summarizing recurring advice.  
+**Planned Extension (v2):** Reuse the same retrieval pipeline to auto-populate a user “notebook” or workspace with those links/summaries, reducing manual curation. A deeper “DIY brief” mode can remain an optional prompt variant but is not the default outcome.
+
 ## 1. User Asks a Question
-- A user asks a DIY question inside Workbench (e.g., “How do I fix a leaky faucet?”).
-- We capture the raw question and hand it to the agent stack.
+- A user asks a DIY-oriented question (e.g., “How do I fix a leaky faucet?”).
+- We capture the raw question, note that the desired response is a set of curated Reddit links plus quick theme bullets, and hand everything to the agent stack.
 
 ## 2. Planner Creates a Search Plan
 - `agent/planner/core.py` generates a `SearchPlan` using OpenAI.
@@ -33,18 +36,22 @@
 ## 5. Additional Filters (Planned)
 - Outside the scoring helper we’ll run extra checks:
   - Drop NSFW posts.
-  - Ensure body length and Reddit’s own `reddit_score` meet minimums.
-  - De-duplicate posts by ID/title.
+  - Ensure body length and Reddit’s native `post_karma` meet minimums.
+  - De-duplicate posts by Reddit `post_id` only (allowing multiple similar titles).
   - Fetch N top-level comments per post and clean them similarly.
 
 ## 6. Build FetchResult
 - Accepted posts get packaged into `services/fetch/schemas.FetchResult`:
   - Carries the original plan info (`plan_id`, `search_terms`, `subreddits`, `notes`).
   - Top-level fields: `query`, `plan_id`, `search_terms`, `subreddits`, `notes`, `source`, `fetched_at`, `posts`.
-  - Each `Post` carries `title`, `selftext`, `reddit_score`, `relevance_score`, `matched_keywords`, `url`, `comments`, `fetched_at`, `source`.
-  - Comments track `id`, `body`, `score`, `source` (no relevance score yet).
+  - Each `Post` carries `title`, `selftext`, `post_karma`, `relevance_score`, `matched_keywords`, `url`, `comments`, `fetched_at`, `source`.
+  - Comments track `comment_id`, `body`, `comment_karma`, `fetched_at`, `source` (no relevance score yet).
   - Full schema lives in `services/fetch/schemas.py` if you need field-level details.
-- FetchResult goes back to the agent pipeline for synthesis or downstream use.
+- FetchResult goes back to the agent pipeline for synthesis. The summarizer prompt produces a **Guided Summary**:
+  1. **Curated Reddit Links:** 3–5 top posts with permalinks and one-line blurbs.
+  2. **Recurring Themes:** 2–4 bullets distilling patterns backed by citations (post IDs/links).
+  3. **Action Outline:** A cautious step-by-step outline synthesized from the cited posts (make it clear users should verify specifics in the links).
+- **Future v2:** Instead of (or in addition to) plain-text output, the agent may push the curated list, themes, and outline into a notebook/workspace so users can reference or edit them later, still powered by the same FetchResult.
 
 ## 7. Logging + Traceability
 - Every scoring pass logs whether a post was accepted or rejected, along with a reason.
