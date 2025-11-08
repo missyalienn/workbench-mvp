@@ -33,7 +33,7 @@ class Post(BaseModel):
     id: str = Field(..., description="Reddit post ID (submission.id)")
     title: str = Field(..., description="Cleaned post title")
     selftext: str = Field(..., description="Cleaned body text of the post")
-    reddit_score: int = Field(
+    post_karma: int = Field(
         ..., description="Native Reddit score (upvotes - downvotes)"
     )
     relevance_score: float = Field(
@@ -61,12 +61,18 @@ class Comment(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: str = Field(..., description="Reddit comment ID (submission.id)")
+    comment_id: str = Field(..., description="Reddit comment ID (submission.id)")
     body: str = Field(..., description="Cleaned comment text")
-    score: int = Field(..., description="Comment score (quality signal)")
+    comment_karma: int = Field(..., description="Comment score (quality signal)")
+    fetched_at: float = Field(..., description="UTC timestamp when the post was fetched")
     source: Literal["reddit"] = Field(
         default="reddit", description="Data origin identifier"
     )
+
+# TO DO: 
+# Add a plan_id field to the Comment object.
+# Add a post_id field to the Comment object.
+# Add a fetched_at field to the Comment object.
 
 
 class FetchResult(BaseModel):

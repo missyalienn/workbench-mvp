@@ -59,12 +59,12 @@ def main() -> None:
 
             for post in posts:
                 total += 1
-                reddit_score = post.get("score", 0)
-                if reddit_score is not None and reddit_score > SHOWCASE_SCORE_THRESHOLD:
+                post_karma = post.get("score", 0)
+                if post_karma is not None and post_karma > SHOWCASE_SCORE_THRESHOLD:
                     logger.info(
-                        "[REJECTED] r/%s | reddit_score=%s | reason=high_score_threshold | title='%s'",
+                        "[REJECTED] r/%s | post_karma=%s | reason=high_score_threshold | title='%s'",
                         subreddit,
-                        reddit_score,
+                        post_karma,
                         post.get("title", "")[:80],
                     )
                     continue
@@ -78,10 +78,10 @@ def main() -> None:
 
                 snippet = title[:80]
                 logger.info(
-                    "[%s] r/%s | reddit_score=%s | relevance=%.2f | title='%s' | positives=%s | negatives=%s",
+                    "[%s] r/%s | post_karma=%s | relevance=%.2f | title='%s' | positives=%s | negatives=%s",
                     "ACCEPTED" if passed else "REJECTED",
                     subreddit,
-                    post.get("score"),
+                    post_karma,
                     relevance,
                     snippet,
                     positives,
