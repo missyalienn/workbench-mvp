@@ -144,7 +144,7 @@ Order of operations (comment):
 
 ## 8) Pseudocode Sketch
 
-"""
+``` python 
 for subreddit in plan.subreddits:
     for term in plan.search_terms:
         for raw_post in paginate_search(subreddit, term):
@@ -184,8 +184,7 @@ for subreddit in plan.subreddits:
                 fetched_at=now(),
             )
             result.posts.append(post)
-"""
-
+```
 
 ## 9) Extensibility
 
