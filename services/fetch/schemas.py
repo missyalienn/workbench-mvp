@@ -10,10 +10,6 @@ Example:
             "best stain technique pine",
         ],
         subreddits=["woodworking"],
-        notes=(
-            "The query is specific to staining a pine bookshelf, making 'woodworking' "
-            "the most relevant subreddit for techniques and advice on wood finishing."
-        ),
         fetched_at=1715208123.0,
         posts=[],
     )
@@ -90,7 +86,6 @@ class FetchResult(BaseModel):
     subreddits: list[str] = Field(
         default_factory=list, description="Targeted subreddits"
     )
-    notes: str = Field(..., description="Planner notes explaining the search strategy")
     source: Literal["reddit"] = Field(
         default="reddit", description="Data origin identifier"
     )
