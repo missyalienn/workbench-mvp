@@ -16,6 +16,7 @@ class SearchPlan(BaseModel):
     plan_id: UUID = Field(
         description="Unique plan identifier for traceability across planner → fetcher → filters"
     )
+    query: str = Field(description="Original user query that produced this plan")
     search_terms: list[str] = Field(
         description="List of search terms to query Reddit (e.g., ['deck repair', 'wood stain'])"
     )

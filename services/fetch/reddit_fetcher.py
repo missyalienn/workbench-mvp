@@ -38,9 +38,7 @@ def run_reddit_fetcher(
     fetched_at = utc_now()
     seen_post_ids: set[str] = set()
     accepted_posts: list[Post] = []
-    plan_query = getattr(plan, "query", "")
-    if not plan_query:
-        logger.debug("SearchPlan missing query field; using empty string placeholder.")
+    plan_query = plan.query
 
     for subreddit in plan.subreddits:
         for term in plan.search_terms:

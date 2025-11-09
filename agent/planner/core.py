@@ -84,7 +84,7 @@ def create_search_plan(user_query: str) -> SearchPlan:
             response_dict["plan_id"] = plan_id_str
 
             # Create SearchPlan (Pydantic validates)
-            plan = SearchPlan(**response_dict)
+            plan = SearchPlan(query=user_query, **response_dict)
 
             logger.info(f"Plan generated successfully [plan_id={plan.plan_id}]")
             logger.debug(
