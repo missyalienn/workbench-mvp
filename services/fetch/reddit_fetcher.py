@@ -1,9 +1,17 @@
 
 from collections.abc import Iterator
+from typing import Any
 
 from requests import Session
 
 from .reddit_client import get_reddit_client
+from .reddit_validation import (
+    is_auto_moderator,
+    is_created_from_ads_ui,
+    is_deleted_or_removed,
+    is_nsfw as raw_is_nsfw,
+    is_self_post,
+)
 from .utils.text_utils import clean_text
 from .scoring import evaluate_post_relevance
 from .schemas import Post, Comment, FetchResult
@@ -15,62 +23,12 @@ MIN_COMMENT_LENGTH = 140
 
 logger = get_logger(__name__)
 
-"""RedditFetcher pipeline contract (implementation TBD).
+"""
+RedditFetcher pipeline contract (implementation TBD).
 
 The fetcher turns a Planner-produced `SearchPlan` into a `FetchResult`
 that downstream agents use to build a Guided Summary (curated links,
-recurring themes, and a cautious action outline). Key stages:
-
-1. Iterate each `(subreddit, search_term)` pair and call the Reddit
-   search REST API via `services.fetch.reddit_client`.
-   
-   * Step 1: Define orchestator function that will call other helper functions.
-   
-   def run_reddit_fetcher(search_terms: list[str], subreddits: list[str], limit: int) -> FetchResult:
-      pass
-   
-
-2. Normalize `title` and `selftext` with `text_utils.clean_text`
-   before any scoring or dedupe so every downstream decision sees
-   ASCII-safe content.
-
-3. Run `scoring.evaluate_post_relevance(post_id, title, body)` to get
-   `(relevance_score, positive_matches, negative_matches, passed)`.
-
-4. Apply post-level filters only if `passed` is true:
-   - NSFW: reject when `over_18` is true (we still send
-     `include_over_18=false`, but local filtering is authoritative).
-   - Body length: require minimum non-whitespace characters.
-   - Dedupe: maintain a `seen_post_ids` set and drop duplicates; we do
-     **not** dedupe on normalized titles so semantic variants survive.
-
-5. For accepted posts, fetch top-level comments, run `clean_text` on
-   each body, enforce comment-length/NSFW rules, and build
-   standalone `Comment` models with `comment_id`, `post_id`,
-   `body`, `comment_karma`, `fetched_at`, `source`.
-   
-   #TODO: fetch_and_filter_comments() function in reddit_fetcher.py
-   #TODO: build_post_model() function in reddit_fetcher.py
-
-6. Construct `schemas.Post` objects (fields include `post_karma`,
-   `relevance_score`, `matched_keywords`, permalink URL, and the list
-   of nested Comment models) plus FetchResult metadata
-   (`plan_id`, `search_terms`, `subreddits`, `notes`, `fetched_at`,
-   `source="reddit"`). Only approved posts/comments ever appear in the
-   FetchResult.
-   
-
-# TODO: Create utc.now()helper in utils/datetime.py. Return timezone aware datetime (datetime.now(timezone.utc)).
-# TODO: Define permalink function (reddit_fetcher.py)
-
-7. Return the `FetchResult`; the summarizer prompt then:
-   - Lists 3 to 5 curated Reddit links with short blurbs.
-   - Highlights 2 to 4 recurring themes with citations.
-   - Offers a cautious action outline synthesized from the cited posts
-     while reminding users to verify details via the links.
-
-Future enhancements (outside current scope):
-- Persist standalone comments in a shared store/DB for analytics.
+recurring themes, and a cautious action outline). 
 """
 
 def run_reddit_fetcher(search_terms: list[str], subreddits: list[str], limit: int) -> FetchResult:
@@ -147,7 +105,7 @@ def paginate_search(
             break
 
 
-def fetch_post_comments(
+def fetch_comments(
     post_id: str,
     limit: int = 50,
     environment: str = "dev",
@@ -172,14 +130,85 @@ def fetch_post_comments(
 
 
 # Helper Filtering Functions:
-def is_nsfw(raw_post: dict) -> bool:
-   """
-   Check if the post is NSFW.
-   """
-   nsfw = bool(raw_post.get("over_18"))
-   if nsfw:
-    logger.info(f"Rejecting post {raw_post.get('id')}: NSFW")
-   return nsfw
+
+
+def filter_comments(
+    post_id: str,
+    raw_comments: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Apply comment-level validation and quality checks."""
+    if not raw_comments:
+        return []
+    filtered: list[dict[str, Any]] = []
+    seen_comment_ids: set[str] = set()
+    for raw_comment in raw_comments:
+        comment_id = raw_comment.get("id")
+        if not comment_id:
+            continue
+        if comment_id in seen_comment_ids:
+            logger.info("Rejecting comment %s: duplicate", comment_id)
+            continue
+        if is_auto_moderator(raw_comment):
+            logger.info("Rejecting comment %s: automoderator", comment_id)
+            continue
+        if is_deleted_or_removed(raw_comment.get("body")):
+            logger.info("Rejecting comment %s: deleted_or_removed", comment_id)
+            continue
+
+        cleaned_body = clean_text(raw_comment.get("body", ""))
+        if is_comment_too_short(cleaned_body):
+            logger.info("Rejecting comment %s: too_short", comment_id)
+            continue
+
+        seen_comment_ids.add(comment_id)
+        filtered.append(
+            _build_comment_payload(
+                comment_id=comment_id,
+                post_id=post_id,
+                cleaned_body=cleaned_body,
+                raw_comment=raw_comment,
+            )
+        )
+    return filtered
+
+
+def _build_comment_payload(
+    *,
+    comment_id: str,
+    post_id: str,
+    cleaned_body: str,
+    raw_comment: dict[str, Any],
+) -> dict[str, Any]:
+    """Construct the normalized comment payload."""
+    score = raw_comment.get("score")
+    karma = int(score) if isinstance(score, (int, float)) else 0
+    return {
+        "comment_id": comment_id,
+        "post_id": post_id,
+        "body": cleaned_body,
+        "comment_karma": karma,
+    }
+
+
+def passes_post_validation(raw_post: dict[str, Any]) -> bool:
+    """Apply metadata veto checks before cleaning/scoring."""
+    post_id = raw_post.get("id")
+    if is_deleted_or_removed(raw_post.get("selftext")):
+        logger.info("Rejecting post %s: deleted_or_removed", post_id)
+        return False
+    if is_auto_moderator(raw_post):
+        logger.info("Rejecting post %s: automoderator", post_id)
+        return False
+    if is_created_from_ads_ui(raw_post):
+        logger.info("Rejecting post %s: ads_ui", post_id)
+        return False
+    if not is_self_post(raw_post):
+        logger.info("Rejecting post %s: non_self_post", post_id)
+        return False
+    if raw_is_nsfw(raw_post):
+        logger.info("Rejecting post %s: nsfw", post_id)
+        return False
+    return True
 
 
 def is_post_too_short(body: str) -> bool:
@@ -195,17 +224,6 @@ def is_post_too_short(body: str) -> bool:
       return True
    seen_post_ids.add(post_id)
    return False
-
-# Comment Filtering Functions:
-def fetch_and_filter_comments(post_id: str) -> list[Comment]:
-   """
-   Fetch and filter comments for a given post.
-   - Fetch comments for a given post.
-   - Clean the comments. (clean_text)
-   -  
-   - Return the filtered comments.
-   """
-   pass     
 
 def is_comment_too_short(body: str) -> bool:
    """
