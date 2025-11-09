@@ -145,7 +145,7 @@ def filter_comments(
         comment_id = raw_comment.get("id")
         if not comment_id:
             continue
-        if comment_id in seen_comment_ids:
+        if has_seen_comment(comment_id, seen_comment_ids):
             logger.info("Rejecting comment %s: duplicate", comment_id)
             continue
         if is_auto_moderator(raw_comment):
@@ -160,7 +160,6 @@ def filter_comments(
             logger.info("Rejecting comment %s: too_short", comment_id)
             continue
 
-        seen_comment_ids.add(comment_id)
         filtered.append(
             _build_comment_payload(
                 comment_id=comment_id,
@@ -212,22 +211,25 @@ def passes_post_validation(raw_post: dict[str, Any]) -> bool:
 
 
 def is_post_too_short(body: str) -> bool:
-   """
-   Check if the post body is too short.
-   """
-   trimmed = body.strip()
-   return len(trimmed) < MIN_POST_LENGTH
+    """Return True when the cleaned post body is below the threshold."""
+    trimmed = body.strip()
+    return len(trimmed) < MIN_POST_LENGTH
 
-   # Dedupe logic (post-level):
-   if post_id in seen_post_ids:
-      logger.info("Rejecting post %s: duplicate", post_id)
-      return True
-   seen_post_ids.add(post_id)
-   return False
+
+def has_seen_post(post_id: str, seen_post_ids: set[str]) -> bool:
+    """Return True if this post_id has already been processed."""
+    if post_id in seen_post_ids:
+        return True
+    seen_post_ids.add(post_id)
+    return False
 
 def is_comment_too_short(body: str) -> bool:
-   """
-   Check if the comment body is too short.
-   """
-   trimmed = body.strip()
-   return len(trimmed) < MIN_COMMENT_LENGTH
+    """Return True when a cleaned comment body is below the threshold."""
+    trimmed = body.strip()
+    return len(trimmed) < MIN_COMMENT_LENGTH
+def has_seen_comment(comment_id: str, seen_comment_ids: set[str]) -> bool:
+    """Return True if this comment_id has already been processed."""
+    if comment_id in seen_comment_ids:
+        return True
+    seen_comment_ids.add(comment_id)
+    return False
