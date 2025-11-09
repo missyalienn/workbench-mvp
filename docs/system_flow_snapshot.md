@@ -17,7 +17,7 @@
 - This plan is our blueprint for gathering instructional data.
 
 ## 3. Fetcher Pulls Reddit Data
-- The fetcher (in progress) will:
+- The fetcher will:
   - Iterate through each `search_term` × `subreddit` pair.
   - Pull roughly 30 raw posts per plan and distribute requests round-robin across the subreddits so no single community dominates the sample.
   - Use `services/fetch/reddit_client.get_reddit_client()` to make REST requests while pacing calls under Reddit’s ~60-requests-per-minute guideline (add short sleeps or batching if needed).
@@ -36,7 +36,7 @@
 ## 5. Additional Filters (Planned)
 - Outside the scoring helper we’ll run extra checks:
   - Drop NSFW posts.
-  - Ensure body length and Reddit’s native `post_karma` meet minimums.
+  - Ensure body length meets minimums.
   - De-duplicate posts by Reddit `post_id` only (allowing multiple similar titles).
   - Fetch N top-level comments per post and clean them similarly.
 
