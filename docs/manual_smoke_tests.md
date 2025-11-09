@@ -7,7 +7,7 @@ Quick, human-triggered checks we run when wiring new features or tuning the plan
 - **Purpose:** Fast sanity check that the planner can turn a handful of DIY queries into SearchPlans without raising errors.
 - **Command:**
   ```bash
-  python scripts/planner_smoke_test.py "How do I hang floating shelves?"
+  python -m scripts.planner_smoke_test "How do I hang floating shelves?"
   ```
   (Omit arguments to use the default query list baked into the script.)
 - **Expected Output:** Logs showing each query, the returned `plan.query`, and the lists of search_terms/subreddits/notes. Failures surface as logged errors for immediate debugging.
