@@ -1,41 +1,36 @@
-import sys
+import typer
 from config.logging_config import get_logger
 from agent.planner import create_search_plan
 
+DEFAULT_QUERIES = [
+    "How do I sand the finish off this dresser?",
+    "How to caulk around bathroom sink fixtures?",
+    "How can I install this projector on ceiling",
+]
+
 logger = get_logger(__name__)
+app = typer.Typer(add_completion=False)
 
 
-def main():
-    # Default queries if none provided
-    queries = (
-        sys.argv[1:]
-        if len(sys.argv) > 1
-        else [
-            "How do I sand the finish off this dresser?",
-            "How to caulk around bathroom sink fixtures?",
-            "How can I install this projector on ceiling",
-            # "How do I refinish hardwood floors?",
-            # "Best way to repair drywall holes",
-            # "How can I get the scratch out of this wood table?",
-            # "Fix sticky drawer",
-            # "How to hang floating shelves",
-        ]
-    )
+@app.command()
+def run(queries: list[str] = typer.Argument(None, help="Queries to generate plans for")) -> None:
+    """Planner smoke test; generates SearchPlans for provided queries."""
+    active_queries = queries or DEFAULT_QUERIES
+    logger.info("Running planner smoke test with %d queries", len(active_queries))
 
-    logger.info(f"Running planner smoke test with {len(queries)} queries")
-
-    for query in queries:
-        logger.info(f"Testing query: {query}")
+    for query in active_queries:
+        logger.info("Testing query: %s", query)
         try:
             plan = create_search_plan(query)
-            logger.debug(f"Search terms: {plan.search_terms}")
-            logger.debug(f"Subreddits: {plan.subreddits}")
-            logger.debug(f"Notes: {plan.notes}")
-        except Exception as e:
-            logger.error(f"Failed to generate plan: {e}")
+            logger.info("Query: %s", plan.query)
+            logger.debug("Search terms: %s", plan.search_terms)
+            logger.debug("Subreddits: %s", plan.subreddits)
+            logger.debug("Notes: %s", plan.notes)
+        except Exception as exc:
+            logger.error("Failed to generate plan for query %s: %s", query, exc)
 
     logger.info("Smoke test complete")
 
 
 if __name__ == "__main__":
-    main()
+    app()
