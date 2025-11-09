@@ -4,6 +4,8 @@ from typing import Any
 
 from requests import Session
 
+from agent.planner.model import SearchPlan
+from agent.planner.model import SearchPlan
 from .reddit_client import get_reddit_client
 from .reddit_validation import (
     is_auto_moderator,
@@ -13,6 +15,7 @@ from .reddit_validation import (
     is_self_post,
 )
 from .utils.text_utils import clean_text
+from .utils.datetime_utils import utc_now
 from .scoring import evaluate_post_relevance
 from .schemas import Post, Comment, FetchResult
 from config.logging_config import get_logger
@@ -23,19 +26,94 @@ MIN_COMMENT_LENGTH = 140
 
 logger = get_logger(__name__)
 
-"""
-RedditFetcher pipeline contract (implementation TBD).
+def run_reddit_fetcher(
+    plan: SearchPlan,
+    *,
+    post_limit: int,
+    environment: str = "dev",
+) -> FetchResult:
+    """
+    Orchestrate the Reddit fetch pipeline for a planner-produced SearchPlan.
+    """
+    fetched_at = utc_now()
+    seen_post_ids: set[str] = set()
+    accepted_posts: list[Post] = []
+    plan_query = getattr(plan, "query", "")
+    if not plan_query:
+        logger.debug("SearchPlan missing query field; using empty string placeholder.")
 
-The fetcher turns a Planner-produced `SearchPlan` into a `FetchResult`
-that downstream agents use to build a Guided Summary (curated links,
-recurring themes, and a cautious action outline). 
-"""
+    for subreddit in plan.subreddits:
+        for term in plan.search_terms:
+            for raw_post in paginate_search(
+                subreddit=subreddit,
+                query=term,
+                limit=post_limit,
+                environment=environment,
+            ):
+                post_id = raw_post.get("id")
+                if not post_id:
+                    logger.info("Rejecting post without ID (subreddit=%s, term=%s)", subreddit, term)
+                    continue
 
-def run_reddit_fetcher(search_terms: list[str], subreddits: list[str], limit: int) -> FetchResult:
-   """
-   Orchestator function that will call the other helper functions.
-   """
-   pass
+                if not passes_post_validation(raw_post):
+                    continue
+
+                title = clean_text(raw_post.get("title", ""))
+                body = clean_text(raw_post.get("selftext", ""))
+
+                score, positives, _, passed = evaluate_post_relevance(
+                    post_id=post_id,
+                    title=title,
+                    body=body,
+                )
+                if not passed:
+                    logger.info("Rejecting post %s: below_threshold", post_id)
+                    continue
+
+                if is_post_too_short(body):
+                    logger.info("Rejecting post %s: too_short", post_id)
+                    continue
+
+                if has_seen_post(post_id, seen_post_ids):
+                    logger.info("Rejecting post %s: duplicate", post_id)
+                    continue
+
+                raw_comments = fetch_comments(post_id=post_id, environment=environment)
+                filtered_comments = filter_comments(post_id=post_id, raw_comments=raw_comments)
+
+                comment_models = build_comment_models(filtered_comments, fetched_at)
+                post_model = build_post_model(
+                    raw_post=raw_post,
+                    cleaned_title=title,
+                    cleaned_body=body,
+                    relevance_score=score,
+                    matched_keywords=positives,
+                    comments=comment_models,
+                    fetched_at=fetched_at,
+                )
+                accepted_posts.append(post_model)
+
+    return FetchResult(
+        query=plan_query,
+        plan_id=plan.plan_id,
+        search_terms=plan.search_terms,
+        subreddits=plan.subreddits,
+        fetched_at=fetched_at,
+        source="reddit",
+        posts=accepted_posts,
+    )
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Transport helpers ---------------------------------------------------------
 
@@ -187,6 +265,70 @@ def _build_comment_payload(
         "body": cleaned_body,
         "comment_karma": karma,
     }
+
+
+def build_comment_models(
+    filtered_comments: list[dict[str, Any]],
+    fetched_at: float,
+) -> list[Comment]:
+    """Convert filtered comment payloads into Comment models."""
+    comment_models: list[Comment] = []
+    for payload in filtered_comments:
+        try:
+            comment_models.append(
+                Comment(
+                    comment_id=payload["comment_id"],
+                    body=payload["body"],
+                    comment_karma=payload["comment_karma"],
+                    fetched_at=fetched_at,
+                )
+            )
+        except KeyError as exc:
+            logger.warning("Skipping comment payload missing %s", exc)
+    return comment_models
+
+
+def build_post_model(
+    *,
+    raw_post: dict[str, Any],
+    cleaned_title: str,
+    cleaned_body: str,
+    relevance_score: float,
+    matched_keywords: list[str],
+    comments: list[Comment],
+    fetched_at: float,
+) -> Post:
+    """Construct a Post model from cleaned data and metadata."""
+    post_karma = raw_post.get("score")
+    permalink = post_permalink(raw_post)
+    return Post(
+        id=raw_post["id"],
+        title=cleaned_title,
+        selftext=cleaned_body,
+        post_karma=int(post_karma) if isinstance(post_karma, (int, float)) else 0,
+        relevance_score=relevance_score,
+        matched_keywords=matched_keywords,
+        url=permalink,
+        comments=comments,
+        fetched_at=fetched_at,
+    )
+
+
+def post_permalink(raw_post: dict[str, Any]) -> str:
+    """Return a canonical Reddit permalink for the submission."""
+    permalink = raw_post.get("permalink")
+    if isinstance(permalink, str) and permalink:
+        if permalink.startswith("http"):
+            return permalink
+        trimmed = permalink.lstrip("/")
+        return f"https://www.reddit.com/{trimmed}"
+
+    url = raw_post.get("url")
+    if isinstance(url, str) and url.startswith("http"):
+        return url
+
+    post_id = raw_post.get("id", "")
+    return f"https://www.reddit.com/comments/{post_id}"
 
 
 def passes_post_validation(raw_post: dict[str, Any]) -> bool:
