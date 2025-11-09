@@ -6,8 +6,8 @@ RedditFetcher is the retrieval module that turns a Planner’s SearchPlan into s
 
 High‑level flow:
 - Planner produces a SearchPlan (plan_id, subreddits, search_terms, notes).
-- RedditFetcher queries Reddit, collects candidate posts, applies scoring + filters, then fetches top‑level comments.
-- The result is a FetchResult with Post and Comment objects suitable for downstream summarization and planning.
+- RedditFetcher queries Reddit, runs the validation/cleaning pipeline, scores qualified posts, and fetches top‑level comments.
+- The result is a FetchResult with Post and Comment objects suitable for downstream summarization and planning. (See `docs/reddit_fetcher_validation.md` for the full veto/clean/filter breakdown.)
 
 Citation note:
 - Every Post.url is a full Reddit permalink so the LLM can cite original sources in answers.
@@ -22,7 +22,7 @@ Inputs
 - SearchPlan (agent/planner/model.py): plan_id, search_terms, subreddits, notes.
 
 Outputs
-- FetchResult (services/fetch/schemas.py): query, plan_id, search_terms, subreddits, notes, fetched_at, posts.
+- FetchResult (services/fetch/schemas.py): query, plan_id, search_terms, subreddits, fetched_at, posts. (`notes` was removed from the schema.)
 - Post: id, title, selftext, **post_karma**, relevance_score, matched_keywords, url, comments, fetched_at, source.
 - Comment (standalone store representation): **comment_id**, post_id, body, **comment_karma**, source, fetched_at.
 
@@ -30,11 +30,11 @@ LLM citation requirement
 - The LLM needs a canonical source link for each item it uses. FetchResult exposes URLs via each Post.url (i.e., FetchResult.posts[*].url). The fetcher must always populate this field with the full Reddit permalink so answers can cite the source.
 
 Processing steps (post-level):
-1) For each subreddit × search_term, call Reddit search API (REST).
-2) Clean title/body with clean_text before scoring.
-3) Score with evaluate_post_relevance(title+body) → relevance_score, positive keywords, negative keywords, passed_threshold.
-4) If passed: apply additional filters (NSFW, body length, dedupe on **post_id** only).
-5) If still accepted: fetch top‑level comments; clean and filter them.
+1) For each subreddit × search_term, call Reddit search API (REST) with `restrict_sr=1` and `include_over_18=false`.
+2) Apply upstream veto checks (deleted/removed, AutoModerator, ads, non-self, NSFW) before touching text.
+3) Clean title/body with clean_text, then score via evaluate_post_relevance(title+body) → relevance_score, positive keywords, negative keywords, passed_threshold.
+4) If passed: apply additional quality filters (body length, dedupe on **post_id** only).
+5) If still accepted: fetch top‑level comments and run the same veto → clean → filter flow.
 6) Build Post objects and aggregate into FetchResult.
 
 
@@ -64,27 +64,29 @@ Transport layer (I/O):
 - Implements search pagination, rate‑limit handling, and Tenacity-based retries with backoff.
 
 Filtering layer (pure-ish logic):
+- Applies the Reddit-specific veto checks described in `docs/reddit_fetcher_validation.md` (deleted/removed, AutoModerator, ads, `is_self_post`, NSFW) before any text work.
 - Normalizes text (clean_text) before any scoring or thresholds.
 - Runs evaluate_post_relevance to get relevance_score and keyword matches.
-- Applies NSFW, body‑length, and dedupe checks after relevance (dedupe is post_id-only).
-- Fetches and filters comments with the same normalization.
+- Applies body‑length and dedupe checks after relevance (post_id-only for posts, comment_id for replies).
+- Reuses the same normalization + filters for comments after they are fetched.
 
 
 ## 5) Key Helpers by Layer
 
 Transport helpers (sync REST; no new types introduced):
-- search_subreddit(...): Query `/r/{sub}/search` for a term with `restrict_sr=1`, handle `limit`, `after`, sort, and parse children → raw post dicts.
+- search_subreddit(...): Query `/r/{sub}/search` for a term with `restrict_sr=1` and `include_over_18=false`, handle `limit`, `after`, sort, and parse children → raw post dicts.
 - paginate_search(...): Loop using `after` cursors to gather enough candidates, honoring rate limits.
 - fetch_post_comments(...): Call `/comments/{id}` (or suitable endpoint) for top-level comments; return raw comment dicts.
 - safe_request(...): Wrapper around Session.get with timeout, retry/backoff, and structured logging.
 
 Filtering helpers (use existing schemas + utilities):
-- preprocess_post(...): Extract and clean post title/selftext via clean_text.
+- preprocess_post(...): Extract and clean post title/selftext via clean_text after veto checks pass.
 - score_post(...): Call evaluate_post_relevance(post_id, title, body) and return relevance_score + matched_keywords.
-- apply_post_filters(...): Enforce NSFW exclusion, minimum body length, and dedupe checks after scoring.
+- apply_post_filters(...): Enforce minimum body length and dedupe checks after scoring.
 - seen_post_ids: in-memory set of Reddit submission IDs used to reject duplicate IDs (no semantic-title dedupe).
-- fetch_and_filter_comments(...): Given a post_id, call `/comments/{id}` for top-level replies, clean_text every body, enforce per-comment length/score/NSFW checks, log rejections, and return Comment models aligned to that post.
+- filter_comments(...): Accepts raw comments for a post, applies veto checks, clean_text, per-comment length thresholds, and dedupe rules, then returns Comment models aligned to that post.
 - build_post_model(...): Construct services/fetch/schemas.Post using cleaned content, post_karma, relevance_score, matched_keywords, url, nested comments, fetched_at, source.
+#TODO: Consider an optional karma filter depending on acceptance rates 
 
 Notes
 - Use clean_text for both posts and comments prior to any scoring/threshold decisions.
@@ -119,19 +121,17 @@ Retry basics:
 ## 6) Post & Comment Filtering Rules
 
 Order of operations (post):
-1) Clean: title = clean_text(raw_title), body = clean_text(raw_selftext).
-2) Score: relevance_score, matched_keywords, _, passed = evaluate_post_relevance(...).
-3) If failed threshold → reject (reason=below_threshold).
-4) NSFW: reject if over_18 is true (reason=nsfw). We also pass `include_over_18=false` and `restrict_sr=1` to Reddit, but the local check is authoritative.
-5) Body length: require a minimum non‑whitespace length or word count (reason=too_short).
-6) Dedupe: reject if post_id already seen in the current run (reason=duplicate). We intentionally do **not** dedupe on title to retain semantic variations for the LLM.
-7) Comments: fetch_and_filter_comments for accepted posts.
+1) Metadata veto: drop deleted/removed text, AutoModerator authors, ads, non-self posts, and NSFW submissions before any cleaning.
+2) Clean: title = clean_text(raw_title), body = clean_text(raw_selftext).
+3) Score: relevance_score, matched_keywords, _, passed = evaluate_post_relevance(...); reject if below threshold.
+4) Quality filters: enforce body-length minimums and dedupe on post_id (reason=too_short / duplicate). We intentionally do **not** dedupe on title to retain semantic variations for the LLM.
+5) Comments: fetch raw comments, then run them through the same veto + clean + filter pipeline before building Post models.
 
 Order of operations (comment):
 1) Fetch via `/comments/{post_id}` so replies are scoped to that post only (no cross-thread leakage).
-2) Clean with clean_text.
-3) Enforce minimum content length and optional NSFW/deleted checks; reject trivial replies.
-4) Require a minimum Reddit comment karma (e.g., ≥1) to keep community-endorsed answers.
+2) Metadata veto: drop deleted/removed bodies and AutoModerator authors immediately.
+3) Clean with clean_text.
+4) Quality filters: enforce minimum content length and dedupe by comment_id to remove duplicates.
 5) Build Comment objects for survivors; persist them (with source) and attach a nested copy to the originating Post.
 
 
@@ -148,6 +148,18 @@ Order of operations (comment):
 for subreddit in plan.subreddits:
     for term in plan.search_terms:
         for raw_post in paginate_search(subreddit, term):
+            if is_deleted_or_removed(raw_post.get("selftext", "")):
+                log(reject, reason="deleted_or_removed")
+                continue
+
+            if is_auto_moderator(raw_post) or not is_self_post(raw_post):
+                log(reject, reason="metadata_veto")
+                continue
+
+            if is_nsfw(raw_post) or is_created_from_ads_ui(raw_post):
+                log(reject, reason="nsfw_or_ad")
+                continue
+
             title = clean_text(raw_post.title)
             body  = clean_text(raw_post.selftext)
 
@@ -158,19 +170,17 @@ for subreddit in plan.subreddits:
                 log(reject, reason="below_threshold")
                 continue
 
-            if raw_post.over_18:
-                log(reject, reason="nsfw")
-                continue
-
-            if too_short(body):
+            if is_post_too_short(body):
                 log(reject, reason="too_short")
                 continue
 
-            if has_seen_post(raw_post.id):
+            if raw_post.id in seen_post_ids:
                 log(reject, reason="duplicate")
                 continue
+            seen_post_ids.add(raw_post.id)
 
-            comments = fetch_and_filter_comments(raw_post.id)
+            raw_comments = fetch_post_comments(raw_post.id)
+            comments = filter_comments(raw_post.id, raw_comments)
 
             post = build_post_model(
                 id=raw_post.id,
@@ -179,7 +189,7 @@ for subreddit in plan.subreddits:
                 post_karma=raw_post.score,
                 relevance_score=score,
                 matched_keywords=positives,
-                url=permalink(raw_post),
+                url=permalink_from_post(raw_post),
                 comments=comments,
                 fetched_at=now(),
             )
