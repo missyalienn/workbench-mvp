@@ -5,6 +5,10 @@ from .scoring import evaluate_post_relevance
 from .schemas import Post, Comment, FetchResult
 from config.logging_config import get_logger
 
+# -- Constants --
+MIN_POST_LENGTH = 250
+MIN_COMMENT_LENGTH = 140
+
 logger = get_logger(__name__)
 
 """RedditFetcher pipeline contract (implementation TBD).
@@ -33,16 +37,14 @@ recurring themes, and a cautious action outline). Key stages:
    - NSFW: reject when `over_18` is true (we still send
      `include_over_18=false`, but local filtering is authoritative).
    - Body length: require minimum non-whitespace characters.
-   - Karma: require minimum native Reddit karma.
    - Dedupe: maintain a `seen_post_ids` set and drop duplicates; we do
      **not** dedupe on normalized titles so semantic variants survive.
 
 5. For accepted posts, fetch top-level comments, run `clean_text` on
-   each body, enforce comment-length/karma/NSFW rules, and build
+   each body, enforce comment-length/NSFW rules, and build
    standalone `Comment` models with `comment_id`, `post_id`,
    `body`, `comment_karma`, `fetched_at`, `source`.
    
-   #TODO: capture distinguished + stickied metadata on comments; revisit filtering rules
    #TODO: fetch_and_filter_comments() function in reddit_fetcher.py
    #TODO: build_post_model() function in reddit_fetcher.py
 
@@ -65,8 +67,6 @@ recurring themes, and a cautious action outline). Key stages:
 
 Future enhancements (outside current scope):
 - Persist standalone comments in a shared store/DB for analytics.
-- Push curated links/themes/action outline into a user notebook to
-  reduce manual curation.
 """
 
 def run_reddit_fetcher(search_terms: list[str], subreddits: list[str], limit: int) -> FetchResult:
@@ -75,7 +75,7 @@ def run_reddit_fetcher(search_terms: list[str], subreddits: list[str], limit: in
    """
    pass
 
-# Helper functions:
+# Helper Filtering Functions:
 def is_nsfw(raw_post: dict) -> bool:
    """
    Check if the post is NSFW.
@@ -85,11 +85,35 @@ def is_nsfw(raw_post: dict) -> bool:
     logger.info(f"Rejecting post {raw_post.get('id')}: NSFW")
    return nsfw
 
-MIN_POST_LENGTH = 250
+
 def is_post_too_short(body: str) -> bool:
    """
    Check if the post body is too short.
    """
    trimmed = body.strip()
    return len(trimmed) < MIN_POST_LENGTH
- 
+
+   # Dedupe logic (post-level):
+   if post_id in seen_post_ids:
+      logger.info("Rejecting post %s: duplicate", post_id)
+      return True
+   seen_post_ids.add(post_id)
+   return False
+
+# Comment Filtering Functions:
+def fetch_and_filter_comments(post_id: str) -> list[Comment]:
+   """
+   Fetch and filter comments for a given post.
+   - Fetch comments for a given post.
+   - Clean the comments. (clean_text)
+   -  
+   - Return the filtered comments.
+   """
+   pass     
+
+def is_comment_too_short(body: str) -> bool:
+   """
+   Check if the comment body is too short.
+   """
+   trimmed = body.strip()
+   return len(trimmed) < MIN_COMMENT_LENGTH
