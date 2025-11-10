@@ -101,3 +101,6 @@ urllib3==2.5.0
 wcwidth==0.2.13
 websocket-client==1.9.0
 wheel==0.42.0
+black==25.9.0
+Typer==0.20.0
+tenacity==9.1.2
