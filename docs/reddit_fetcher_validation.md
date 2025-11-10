@@ -25,6 +25,7 @@ Content-focused gates that run after cleaning + relevance scoring:
 
 - `is_post_too_short(body)` / `is_comment_too_short(body)` enforce per-type minimum character counts.
 - Dedupe sets (`seen_post_ids`, `seen_comment_ids`) prevent repeat submissions/comments within the same fetch run.
+- Comment gating also requires `comment_karma ≥ 2` and we only keep the top 5 comments (sorted by karma) per post so high-signal replies dominate.
 
 Only posts and comments that clear these filters are converted into `Post` and `Comment` models.
 
@@ -38,7 +39,7 @@ fetch_posts (paginate_search with include_over_18=false, restrict_sr=1)
   → fetch_comments(post_id)
       → veto layer (deleted/removed, AutoModerator)
       → clean_text(comment body)
-      → quality filters (length, dedupe)
+      → quality filters (length, karma ≥ 2, dedupe, top 5 by karma)
       → build Comment models
   → build Post model (attach comments, permalink, scores)
 → aggregate into FetchResult (notes removed)
