@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import List
 
@@ -151,7 +151,7 @@ def run(
             }
         )
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     preview_path = PREVIEW_DIR / f"fetch_preview_{timestamp}.json"
     preview_path.write_text(json.dumps(preview_payload, indent=2), encoding="utf-8")
     logger.info("Fetch preview saved to %s", preview_path)

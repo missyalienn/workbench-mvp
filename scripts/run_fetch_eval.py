@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import List
 
@@ -115,7 +115,7 @@ def run(
             }
         )
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     summary_path = EVAL_DIR / f"fetch_eval_{timestamp}.json"
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     logger.info("Fetch evaluation complete (summary saved to %s).", summary_path)

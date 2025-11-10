@@ -23,6 +23,8 @@ from config.logging_config import get_logger
 # -- Constants --
 MIN_POST_LENGTH = 250
 MIN_COMMENT_LENGTH = 140
+MIN_COMMENT_KARMA = 2
+MAX_COMMENTS_PER_POST = 5
 
 logger = get_logger(__name__)
 
@@ -231,6 +233,12 @@ def filter_comments(
             logger.info("Rejecting comment %s: deleted_or_removed", comment_id)
             continue
 
+        score = raw_comment.get("score")
+        karma = int(score) if isinstance(score, (int, float)) else 0
+        if karma < MIN_COMMENT_KARMA:
+            logger.info("Rejecting comment %s: low_karma", comment_id)
+            continue
+
         cleaned_body = clean_text(raw_comment.get("body", ""))
         if is_comment_too_short(cleaned_body):
             logger.info("Rejecting comment %s: too_short", comment_id)
@@ -241,10 +249,13 @@ def filter_comments(
                 comment_id=comment_id,
                 post_id=post_id,
                 cleaned_body=cleaned_body,
-                raw_comment=raw_comment,
+                comment_karma=karma,
             )
         )
-    return filtered
+    if not filtered:
+        return []
+    filtered.sort(key=lambda comment: comment["comment_karma"], reverse=True)
+    return filtered[:MAX_COMMENTS_PER_POST]
 
 
 def _build_comment_payload(
@@ -252,16 +263,14 @@ def _build_comment_payload(
     comment_id: str,
     post_id: str,
     cleaned_body: str,
-    raw_comment: dict[str, Any],
+    comment_karma: int,
 ) -> dict[str, Any]:
     """Construct the normalized comment payload."""
-    score = raw_comment.get("score")
-    karma = int(score) if isinstance(score, (int, float)) else 0
     return {
         "comment_id": comment_id,
         "post_id": post_id,
         "body": cleaned_body,
-        "comment_karma": karma,
+        "comment_karma": comment_karma,
     }
 
 
