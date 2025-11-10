@@ -14,9 +14,16 @@ from config.logging_config import get_logger, configure_logging
 from agent.planner import create_search_plan
 
 DEFAULT_QUERIES = [
-    "How do I sand the finish off this dresser?",
-    "How to caulk around bathroom sink fixtures?",
-    "How can I install this projector on ceiling",
+    "how to caulk bathtub",
+    "how to repair holes in drywall",
+    "how to install peel and stick vinyl flooring in an apartment",
+    "how to touch up chipped wall paint",
+    "how to mount a TV safely",
+    "how to hang picture frames straight",
+    "how to hang floating wall shelves",
+    "how to build a raised garden bed",
+    "how to fix a broken light fixture or loose outlet cover",
+    "how to paint a room properly",
 ]
 
 logger = get_logger(__name__)
