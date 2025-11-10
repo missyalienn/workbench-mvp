@@ -11,6 +11,7 @@ Quick, human-triggered checks we run when wiring new features or tuning the plan
   ```
   (Omit arguments to use the default query list baked into the script.)
 - **Expected Output:** Logs showing each query, the returned `plan.query`, and the lists of search_terms/subreddits/notes. Failures surface as logged errors for immediate debugging.
+- **Tip:** Use `python -m scripts.save_plan "How do I hang floating shelves?"` when you want to persist a planner output to JSON for later fetcher testing. Files land in `data/plans/` with slugged names.
 
 ## Reddit Fetcher Smoke Test
 - **Script:** `scripts/reddit_fetcher_smoke_test.py` (to be implemented per requirements)

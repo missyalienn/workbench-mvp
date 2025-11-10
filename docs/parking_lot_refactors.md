@@ -1,0 +1,1 @@
+- (2025-05-??) — Add wrapper command for planner+fetcher flow — Avoid typing long commands; consider Makefile alias or shell script that runs save_plan + fetcher with defaults.
