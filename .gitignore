@@ -1,7 +1,12 @@
 # Custom project files
 AGENTS.md
 /x_internal/
+/z_archive/
+/data/
 
+
+# Ignore .cursorignore
+.cursorignore
 
 # Ignore logs and temp files
 *.log
