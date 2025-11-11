@@ -13,6 +13,7 @@ from .reddit_validation import (
     is_deleted_or_removed,
     is_nsfw as raw_is_nsfw,
     is_self_post,
+    is_showcase_post,
 )
 from .utils.text_utils import clean_text
 from .utils.datetime_utils import utc_now
@@ -355,6 +356,9 @@ def passes_post_validation(raw_post: dict[str, Any]) -> bool:
         return False
     if not is_self_post(raw_post):
         logger.info("Rejecting post %s: non_self_post", post_id)
+        return False
+    if is_showcase_post(raw_post):
+        logger.info("Rejecting post %s: showcase_post", post_id)
         return False
     if raw_is_nsfw(raw_post):
         logger.info("Rejecting post %s: nsfw", post_id)
