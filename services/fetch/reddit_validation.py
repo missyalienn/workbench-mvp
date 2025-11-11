@@ -28,8 +28,13 @@ def is_created_from_ads_ui(raw_post: dict[str, Any]) -> bool:
 
 
 def is_self_post(raw_post: dict[str, Any]) -> bool:
-    """Return True only when the submission is a text/self post."""
-    return bool(raw_post.get("is_self"))
+    """Return True when the submission is text-only or an allowed image/gallery."""
+    if raw_post.get("is_self"):
+        return True
+    post_hint = raw_post.get("post_hint")
+    if isinstance(post_hint, str) and post_hint.lower() == "image":
+        return True
+    return bool(raw_post.get("is_gallery"))
 
 
 def is_nsfw(raw_post: dict[str, Any]) -> bool:

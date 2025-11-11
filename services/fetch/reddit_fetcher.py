@@ -82,6 +82,9 @@ def run_reddit_fetcher(
                 filtered_comments = filter_comments(post_id=post_id, raw_comments=raw_comments)
 
                 comment_models = build_comment_models(filtered_comments, fetched_at)
+                if not comment_models:
+                    logger.info("Rejecting post %s: no_comments", post_id)
+                    continue
                 post_model = build_post_model(
                     raw_post=raw_post,
                     cleaned_title=title,
