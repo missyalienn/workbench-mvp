@@ -18,6 +18,18 @@ Focused 4-day plan (≈8 hours/day) to stabilize the fetcher, add resilience, an
 **Deliverable**
 - Modular fetcher with no functional regressions; baseline preview/eval JSON proving parity.
 
+**Progress Notes (2025-11-12)**
+- `services/reddit_client/` now houses session handling, raw endpoints, and a high-level client; `reddit_fetcher` relies on it.
+- Post/comment builders, content filters, and the comment pipeline each live in dedicated modules (`reddit_builders.py`, `content_filters.py`, `comment_pipeline.py`).
+- Verified the refactor by running `python -m scripts.run_fetch_preview` (see `data/fetch_previews/fetch_preview_20251112_refactor.json`).
+- TODO: add unit tests for the new helper modules (tracked inline) and continue monitoring whether the comment pipeline should expose additional helpers.
+
+**Current Work Breakdown**
+1. Build the new `services/reddit_client/` package (session manager, API client, endpoints) and update `reddit_fetcher.py` to consume it.
+2. Move assembly helpers into `reddit_assembly.py` and validate imports.
+3. Write minimal unit tests for the new modules (session auth, client methods, assembly helpers).
+4. Update docs (e.g., `reddit_fetcher_design.md`) once the refactor is confirmed working.
+
 **Helper Inventory (Current → Target)**  
 _Functions currently implemented inside `services/fetch/reddit_fetcher.py`._
 

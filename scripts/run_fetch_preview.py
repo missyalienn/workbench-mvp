@@ -25,14 +25,14 @@ app = typer.Typer(add_completion=False)
 DEFAULT_QUERIES: List[str] = [
     "how to caulk bathtub",
     "how to repair holes in drywall",
-    "how to install peel and stick vinyl flooring in an apartment",
-    "how to touch up chipped wall paint",
-    "how to mount a TV safely",
-    "how to hang picture frames straight",
-    "how to hang floating wall shelves",
-    "how to build a raised garden bed",
-    "how to fix a broken light fixture or loose outlet cover",
-    "how to paint a room properly",
+    #"how to install peel and stick vinyl flooring in an apartment",
+    #"how to touch up chipped wall paint",
+    #"how to mount a TV safely",
+    #"how to hang picture frames straight",
+    #"how to hang floating wall shelves",
+    #"how to build a raised garden bed",
+    #"how to fix a broken light fixture or loose outlet cover",
+    #"how to paint a room properly",
 ]
 
 PREVIEW_DIR = Path("data/fetch_previews")

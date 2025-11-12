@@ -1,7 +1,6 @@
-"""Reddit-specific validation helpers.
-
-These functions inspect raw Reddit payloads before any cleaning or
-scoring happens inside the fetcher pipeline. All functions are pure and return a boolean.
+"""
+Reddit validation helpers. Used to validate raw Reddit payloads before cleaning or content filtering downstream. 
+All functions are pure and return a boolean.
 """
 
 from __future__ import annotations
@@ -9,6 +8,9 @@ from __future__ import annotations
 from typing import Any
 
 from .keyword_groups import NEGATIVE_KEYWORDS
+from config.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 SHOWCASE_KEYWORDS = tuple(
     keyword.lower()
@@ -78,3 +80,27 @@ def _has_high_karma(raw_post: dict[str, Any]) -> bool:
     if isinstance(score, (int, float)):
         return score >= SHOWCASE_KARMA_THRESHOLD
     return False
+
+
+def passes_post_validation(raw_post: dict[str, Any]) -> bool:
+    """Apply metadata veto checks before cleaning/scoring."""
+    post_id = raw_post.get("id")
+    if is_deleted_or_removed(raw_post.get("selftext")):
+        logger.info("Rejecting post %s: deleted_or_removed", post_id)
+        return False
+    if is_auto_moderator(raw_post):
+        logger.info("Rejecting post %s: automoderator", post_id)
+        return False
+    if is_created_from_ads_ui(raw_post):
+        logger.info("Rejecting post %s: ads_ui", post_id)
+        return False
+    if not is_self_post(raw_post):
+        logger.info("Rejecting post %s: non_self_post", post_id)
+        return False
+    if is_showcase_post(raw_post):
+        logger.info("Rejecting post %s: showcase_post", post_id)
+        return False
+    if is_nsfw(raw_post):
+        logger.info("Rejecting post %s: nsfw", post_id)
+        return False
+    return True
