@@ -1,6 +1,6 @@
 ## 🧰 Workbench
 
-**Workbench** is a research buddy focused on DIY and home improvement projects, built with OpenAI and Reddit APIs.  
+**Workbench** is a research agent for DIY and home improvement projects built with OpenAI and Reddit APIs.  
 
 Ask questions like:  
 > “How do I hang floating shelves?”  
