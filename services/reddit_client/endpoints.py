@@ -5,12 +5,20 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
+import requests
 from requests import Session
+
+from services.http.retry_policy import (
+    RateLimitError,
+    RetryableFetchError,
+    fetch_with_retry,
+)
 
 SEARCH_PATH_TEMPLATE = "/r/{subreddit}/search"
 COMMENTS_PATH_TEMPLATE = "/comments/{post_id}"
 
 
+@fetch_with_retry()
 def search_subreddit(
     session: Session,
     *,
@@ -29,12 +37,25 @@ def search_subreddit(
     }
     if after:
         params["after"] = after
-    response = session.get(
-        f"https://oauth.reddit.com{SEARCH_PATH_TEMPLATE.format(subreddit=subreddit)}",
-        params=params,
-        timeout=10,
-    )
-    response.raise_for_status()
+    try:
+        response = session.get(
+            f"https://oauth.reddit.com{SEARCH_PATH_TEMPLATE.format(subreddit=subreddit)}",
+            params=params,
+            timeout=10,
+        )
+    except requests.exceptions.Timeout as exc:
+        raise RetryableFetchError("Timeout during subreddit search") from exc
+    except requests.exceptions.RequestException as exc:
+        raise RetryableFetchError("Transport error during subreddit search") from exc
+
+    if response.status_code == 429:
+        raise RateLimitError(f"Rate limit hit for subreddit search ({subreddit})")
+
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise RetryableFetchError("HTTP error during subreddit search") from exc
+
     return response.json()
 
 
@@ -69,7 +90,7 @@ def paginate_search(
         if not after:
             break
 
-
+@fetch_with_retry()
 def fetch_comments(
     session: Session,
     *,
@@ -78,12 +99,25 @@ def fetch_comments(
 ) -> list[dict[str, Any]]:
     """Fetch top-level comments for a submission."""
     params = {"limit": limit, "depth": 1, "sort": "top"}
-    response = session.get(
-        f"https://oauth.reddit.com{COMMENTS_PATH_TEMPLATE.format(post_id=post_id)}",
-        params=params,
-        timeout=10,
-    )
-    response.raise_for_status()
+    try:
+        response = session.get(
+            f"https://oauth.reddit.com{COMMENTS_PATH_TEMPLATE.format(post_id=post_id)}",
+            params=params,
+            timeout=10,
+        )
+    except requests.exceptions.Timeout as exc:
+        raise RetryableFetchError("Timeout while fetching comments") from exc
+    except requests.exceptions.RequestException as exc:
+        raise RetryableFetchError("Transport error while fetching comments") from exc
+
+    if response.status_code == 429:
+        raise RateLimitError(f"Rate limit hit while fetching comments ({post_id})")
+
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise RetryableFetchError("HTTP error while fetching comments") from exc
+
     payload = response.json()
     if not isinstance(payload, list) or len(payload) < 2:
         return []
