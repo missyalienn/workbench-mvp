@@ -17,7 +17,7 @@ configure_logging()
 logger = get_logger(__name__)
 
 
-def get_openai_client(environment: str = "dev") -> OpenAI:
+def get_openai_client(environment: str = "openai-dev") -> OpenAI:
     """Return an authenticated OpenAI client using keyring credentials."""
     api_key = keyring.get_password("openai-key", environment)
     if not api_key:

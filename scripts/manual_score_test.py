@@ -16,7 +16,7 @@ if __package__ is None or __package__ == "":
         sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.logging_config import configure_logging, get_logger
-from services.fetch.reddit_client import API_BASE_URL, get_reddit_client
+from services.reddit_client import RedditClient
 from services.fetch.scoring import evaluate_post_relevance
 from services.fetch.text_utils import clean_text
 
@@ -25,6 +25,7 @@ DEFAULT_TERMS = ["leaky faucet fix"]
 SHOWCASE_SCORE_THRESHOLD = 2000
 
 logger = get_logger(__name__)
+API_BASE_URL = "https://oauth.reddit.com"
 
 
 def main() -> None:
@@ -42,7 +43,8 @@ def main() -> None:
     )
     logger.info("Log file: %s", log_path)
 
-    session = get_reddit_client()
+    client = RedditClient()
+    session = client.session()
 
     total = 0
     accepted = 0

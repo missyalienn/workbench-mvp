@@ -6,7 +6,7 @@ Hard-stop metadata checks run before any text processing. Each helper lives in `
 - `is_deleted_or_removed(raw_text)` → drops `[deleted]`, `[removed]`, or empty bodies for posts and comments.
 - `is_auto_moderator(raw_item)` → rejects any submission/comment authored by `AutoModerator`.
 - `is_created_from_ads_ui(raw_post)` → removes sponsored or promotional posts.
-- `is_self_post(raw_post)` → enforces text-only submissions (`is_self == True`).
+- `is_self_post(raw_post)` → allows self posts plus Reddit-marked `image` or gallery submissions.
 - `is_nsfw(raw_post)` → vetoes `over_18` content before downstream logic or comment fetches run.
 
 ## Cleaning Stage
@@ -25,6 +25,7 @@ Content-focused gates that run after cleaning + relevance scoring:
 
 - `is_post_too_short(body)` / `is_comment_too_short(body)` enforce per-type minimum character counts.
 - Dedupe sets (`seen_post_ids`, `seen_comment_ids`) prevent repeat submissions/comments within the same fetch run.
+- Comment gating also requires `comment_karma ≥ 2` and we only keep the top 5 comments (sorted by karma) per post so high-signal replies dominate.
 
 Only posts and comments that clear these filters are converted into `Post` and `Comment` models.
 
@@ -38,7 +39,7 @@ fetch_posts (paginate_search with include_over_18=false, restrict_sr=1)
   → fetch_comments(post_id)
       → veto layer (deleted/removed, AutoModerator)
       → clean_text(comment body)
-      → quality filters (length, dedupe)
+      → quality filters (length, karma ≥ 2, dedupe, top 5 by karma)
       → build Comment models
   → build Post model (attach comments, permalink, scores)
 → aggregate into FetchResult (notes removed)
@@ -52,7 +53,7 @@ fetch_posts (paginate_search with include_over_18=false, restrict_sr=1)
 | `is_deleted_or_removed`             | `services/fetch/reddit_validation.py`      | Used by posts and comments               |
 | `is_auto_moderator`                 | `services/fetch/reddit_validation.py`      | Rejects AutoModerator authors            |
 | `is_created_from_ads_ui`            | `services/fetch/reddit_validation.py`      | Filters ad/promotional submissions       |
-| `is_self_post`                      | `services/fetch/reddit_validation.py`      | Ensures text-only posts                  |
+| `is_self_post`                      | `services/fetch/reddit_validation.py`      | Allows self posts, `post_hint="image"`, and galleries |
 | `is_nsfw`                           | `services/fetch/reddit_validation.py`      | Post-level NSFW veto                     |
 | `is_post_too_short` / `is_comment_too_short` | `services/fetch/reddit_fetcher.py`      | Post-cleaning quality checks             |
 | Dedupe helpers / sets               | `services/fetch/reddit_fetcher.py`         | Maintained per run in orchestrator       |
