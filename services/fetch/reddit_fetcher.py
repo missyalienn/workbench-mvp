@@ -2,6 +2,7 @@ from typing import Any
 
 from agent.planner.model import SearchPlan
 from services.reddit_client import RedditClient
+from services.http.retry_policy import RateLimitError, RetryableFetchError
 from .reddit_validation import passes_post_validation
 from .content_filters import (
     is_post_too_short,
@@ -20,6 +21,7 @@ from config.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 def run_reddit_fetcher(
     plan: SearchPlan,
     *,
@@ -37,56 +39,97 @@ def run_reddit_fetcher(
 
     for subreddit in plan.subreddits:
         for term in plan.search_terms:
-            for raw_post in client.paginate_search(
-                subreddit=subreddit,
-                query=term,
-                limit=post_limit,
-            ):
-                post_id = raw_post.get("id")
-                if not post_id:
-                    logger.info("Rejecting post without ID (subreddit=%s, term=%s)", subreddit, term)
-                    continue
+            try:
+                for raw_post in client.paginate_search(
+                    subreddit=subreddit,
+                    query=term,
+                    limit=post_limit,
+                ):
+                    post_id = raw_post.get("id")
+                    if not post_id:
+                        logger.info(
+                            "Rejecting post without ID (subreddit=%s, term=%s)",
+                            subreddit,
+                            term,
+                        )
+                        continue
 
-                if not passes_post_validation(raw_post):
-                    continue
+                    if not passes_post_validation(raw_post):
+                        continue
 
-                title = clean_text(raw_post.get("title", ""))
-                body = clean_text(raw_post.get("selftext", ""))
+                    title = clean_text(raw_post.get("title", ""))
+                    body = clean_text(raw_post.get("selftext", ""))
 
-                score, positives, _, passed = evaluate_post_relevance(
-                    post_id=post_id,
-                    title=title,
-                    body=body,
+                    score, positives, _, passed = evaluate_post_relevance(
+                        post_id=post_id,
+                        title=title,
+                        body=body,
+                    )
+                    if not passed:
+                        logger.info("Rejecting post %s: below_threshold", post_id)
+                        continue
+
+                    if is_post_too_short(body):
+                        logger.info("Rejecting post %s: too_short", post_id)
+                        continue
+
+                    if has_seen_post(post_id, seen_post_ids):
+                        logger.info("Rejecting post %s: duplicate", post_id)
+                        continue
+
+                    try:
+                        raw_comments = client.fetch_comments(post_id=post_id)
+                    except RateLimitError as exc:
+                        logger.warning(
+                            "429: Too many requests while fetching comments (post_id=%s): %s",
+                            post_id,
+                            exc,
+                        )
+                        continue
+                    except RetryableFetchError as exc:
+                        logger.warning(
+                            "Comments fetch failed after retries (post_id=%s): %s",
+                            post_id,
+                            exc,
+                        )
+                        continue
+
+                    filtered_comments = filter_comments(
+                        post_id=post_id,
+                        raw_comments=raw_comments,
+                    )
+
+                    comment_models = build_comment_models(filtered_comments, fetched_at)
+                    if not comment_models:
+                        logger.info("Rejecting post %s: no_comments", post_id)
+                        continue
+
+                    post_model = build_post_model(
+                        raw_post=raw_post,
+                        cleaned_title=title,
+                        cleaned_body=body,
+                        relevance_score=score,
+                        matched_keywords=positives,
+                        comments=comment_models,
+                        fetched_at=fetched_at,
+                    )
+                    accepted_posts.append(post_model)
+            except RateLimitError as exc:
+                logger.warning(
+                    "429: Too many requests while searching (subreddit=%s, term=%s): %s",
+                    subreddit,
+                    term,
+                    exc,
                 )
-                if not passed:
-                    logger.info("Rejecting post %s: below_threshold", post_id)
-                    continue
-
-                if is_post_too_short(body):
-                    logger.info("Rejecting post %s: too_short", post_id)
-                    continue
-
-                if has_seen_post(post_id, seen_post_ids):
-                    logger.info("Rejecting post %s: duplicate", post_id)
-                    continue
-
-                raw_comments = client.fetch_comments(post_id=post_id)
-                filtered_comments = filter_comments(post_id=post_id, raw_comments=raw_comments)
-
-                comment_models = build_comment_models(filtered_comments, fetched_at)
-                if not comment_models:
-                    logger.info("Rejecting post %s: no_comments", post_id)
-                    continue
-                post_model = build_post_model(
-                    raw_post=raw_post,
-                    cleaned_title=title,
-                    cleaned_body=body,
-                    relevance_score=score,
-                    matched_keywords=positives,
-                    comments=comment_models,
-                    fetched_at=fetched_at,
+                continue
+            except RetryableFetchError as exc:
+                logger.warning(
+                    "Search failed after retries (subreddit=%s, term=%s): %s",
+                    subreddit,
+                    term,
+                    exc,
                 )
-                accepted_posts.append(post_model)
+                continue
 
     return FetchResult(
         query=plan_query,
@@ -97,5 +140,6 @@ def run_reddit_fetcher(
         source="reddit",
         posts=accepted_posts,
     )
+
 
 __all__ = ["run_reddit_fetcher"]
