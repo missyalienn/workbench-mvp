@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     MAX_SUBREDDITS: int = 3
     MAX_SEARCH_TERMS: int = 5
 
+    #Multithreading Configuration
+    FETCHER_MAX_WORKERS: int = 3
+    FETCHER_ENABLE_CONCURRENCY: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
