@@ -100,6 +100,7 @@ def run(
 
     logger.info("Running fetch preview for %d queries", len(queries))
     preview_payload: list[dict] = []
+    total_start = time.perf_counter()
 
     for query in queries:
         logger.info("Processing query: %s", query)
@@ -160,9 +161,15 @@ def run(
             }
         )
 
+    total_elapsed = time.perf_counter() - total_start
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     preview_path = PREVIEW_DIR / f"fetch_preview_{timestamp}.json"
     preview_path.write_text(json.dumps(preview_payload, indent=2), encoding="utf-8")
+    logger.info(
+        "All queries done in %.2fs (count=%d)",
+        total_elapsed,
+        len(queries),
+    )
     logger.info("Fetch preview saved to %s", preview_path)
 
 

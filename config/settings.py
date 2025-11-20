@@ -53,7 +53,7 @@ class Settings(BaseSettings):
 
     #Multithreading Configuration
     FETCHER_MAX_WORKERS: int = 3
-    FETCHER_ENABLE_CONCURRENCY: bool = False
+    FETCHER_ENABLE_CONCURRENCY: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",
