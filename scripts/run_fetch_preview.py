@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import List
@@ -25,14 +26,14 @@ app = typer.Typer(add_completion=False)
 DEFAULT_QUERIES: List[str] = [
     "how to caulk bathtub",
     "how to repair holes in drywall",
-    #"how to install peel and stick vinyl flooring in an apartment",
-    #"how to touch up chipped wall paint",
-    #"how to mount a TV safely",
-    #"how to hang picture frames straight",
-    #"how to hang floating wall shelves",
-    #"how to build a raised garden bed",
-    #"how to fix a broken light fixture or loose outlet cover",
-    #"how to paint a room properly",
+    "how to install laminate flooring in an apartment",
+    "how to touch up chipped wall paint",
+    "how to mount a TV safely",
+    "how to remove scratches from wood table",
+    "how to hang floating wall shelves",
+    "how to build a raised garden bed",
+    "how to fix a broken light fixture",
+    "how to paint a room properly",
 ]
 
 PREVIEW_DIR = Path("data/fetch_previews")
@@ -99,6 +100,7 @@ def run(
 
     logger.info("Running fetch preview for %d queries", len(queries))
     preview_payload: list[dict] = []
+    total_start = time.perf_counter()
 
     for query in queries:
         logger.info("Processing query: %s", query)
@@ -116,10 +118,18 @@ def run(
             continue
 
         try:
+            start = time.perf_counter()
             fetch_result = run_reddit_fetcher(
                 plan=plan,
                 post_limit=post_limit,
                 environment=environment,
+            )
+            elapsed = time.perf_counter() - start
+            logger.info(
+                "Fetch done in %.2fs (subreddits=%d, terms=%d)",
+                elapsed,
+                len(plan.subreddits),
+                len(plan.search_terms),
             )
         except Exception as exc:
             logger.error("Fetcher failed for query '%s': %s", query, exc)
@@ -151,9 +161,15 @@ def run(
             }
         )
 
+    total_elapsed = time.perf_counter() - total_start
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     preview_path = PREVIEW_DIR / f"fetch_preview_{timestamp}.json"
     preview_path.write_text(json.dumps(preview_payload, indent=2), encoding="utf-8")
+    logger.info(
+        "All queries done in %.2fs (count=%d)",
+        total_elapsed,
+        len(queries),
+    )
     logger.info("Fetch preview saved to %s", preview_path)
 
 

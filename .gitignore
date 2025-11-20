@@ -4,9 +4,11 @@ AGENTS.md
 /z_archive/
 /data/
 
+.DS_Store
 
 # Ignore .cursorignore
 .cursorignore
+.cursor
 
 # Ignore logs and temp files
 *.log

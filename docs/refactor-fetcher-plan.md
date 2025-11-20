@@ -33,22 +33,22 @@ Focused 4-day plan (≈8 hours/day) to stabilize the fetcher, add resilience, an
 **Helper Inventory (Current → Target)**  
 _Functions currently implemented inside `services/fetch/reddit_fetcher.py`._
 
-| Function / Helper         | Function Signature                                                       | Purpose                                       | Target Module        |
-|--------------------------|---------------------------------------------------------------------------|-----------------------------------------------|----------------------|
-| `_get_client`            | `def _get_client(environment: str = "dev") -> Session`                    | Build authenticated `requests.Session`        | `reddit_client.py`   |
-| `search_subreddit`       | `def search_subreddit(subreddit: str, query: str, limit: int = 25, after: str \| None = None, environment: str = "dev") -> dict` | Call Reddit search endpoint | `reddit_client.py` |
-| `paginate_search`        | `def paginate_search(subreddit: str, query: str, limit: int, environment: str = "dev") -> Iterator[dict]` | Iterate through search pages | `reddit_client.py` |
-| `fetch_comments`         | `def fetch_comments(post_id: str, limit: int = 50, environment: str = "dev") -> list[dict]` | Fetch top-level comments for a submission | `reddit_client.py` |
-| `passes_post_validation` | `def passes_post_validation(raw_post: dict[str, Any]) -> bool`            | Run metadata veto checks                      | `reddit_validation.py` |
-| `is_post_too_short`      | `def is_post_too_short(body: str) -> bool`                                | Enforce minimum body length                   | `reddit_validation.py` |
-| `has_seen_post`          | `def has_seen_post(post_id: str, seen_post_ids: set[str]) -> bool`        | Deduplicate posts per run                     | `reddit_validation.py` |
-| `filter_comments`        | `def filter_comments(post_id: str, raw_comments: list[dict[str, Any]]) -> list[dict[str, Any]]` | Apply comment-level vetoes | `reddit_validation.py` |
-| `is_comment_too_short`   | `def is_comment_too_short(body: str) -> bool`                             | Enforce minimum comment length                | `reddit_validation.py` |
-| `has_seen_comment`       | `def has_seen_comment(comment_id: str, seen_comment_ids: set[str]) -> bool` | Deduplicate comments per run                | `reddit_validation.py` |
-| `_build_comment_payload` | `def _build_comment_payload(*, comment_id: str, post_id: str, cleaned_body: str, comment_karma: int) -> dict[str, Any]` | Normalize filtered comment data | `reddit_assembly.py` |
-| `build_comment_models`   | `def build_comment_models(filtered_comments: list[dict[str, Any]], fetched_at: float) -> list[Comment]` | Convert payloads into `Comment` objects | `reddit_assembly.py` |
-| `build_post_model`       | `def build_post_model(*, raw_post: dict[str, Any], cleaned_title: str, cleaned_body: str, relevance_score: float, matched_keywords: list[str], comments: list[Comment], fetched_at: float) -> Post` | Construct `Post` objects from cleaned data | `reddit_assembly.py` |
-| `post_permalink`         | `def post_permalink(raw_post: dict[str, Any]) -> str`                     | Produce canonical Reddit URL for a submission | `reddit_assembly.py` |
+| Function / Helper        | Function Signature                                                                                                                                                                                  | Purpose                                       | Target Module          |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------- |
+| `_get_client`            | `def _get_client(environment: str = "dev") -> Session`                                                                                                                                              | Build authenticated `requests.Session`        | `reddit_client.py`     |
+| `search_subreddit`       | `def search_subreddit(subreddit: str, query: str, limit: int = 25, after: str \| None = None, environment: str = "dev") -> dict`                                                                    | Call Reddit search endpoint                   | `reddit_client.py`     |
+| `paginate_search`        | `def paginate_search(subreddit: str, query: str, limit: int, environment: str = "dev") -> Iterator[dict]`                                                                                           | Iterate through search pages                  | `reddit_client.py`     |
+| `fetch_comments`         | `def fetch_comments(post_id: str, limit: int = 50, environment: str = "dev") -> list[dict]`                                                                                                         | Fetch top-level comments for a submission     | `reddit_client.py`     |
+| `passes_post_validation` | `def passes_post_validation(raw_post: dict[str, Any]) -> bool`                                                                                                                                      | Run metadata veto checks                      | `reddit_validation.py` |
+| `is_post_too_short`      | `def is_post_too_short(body: str) -> bool`                                                                                                                                                          | Enforce minimum body length                   | `reddit_validation.py` |
+| `has_seen_post`          | `def has_seen_post(post_id: str, seen_post_ids: set[str]) -> bool`                                                                                                                                  | Deduplicate posts per run                     | `reddit_validation.py` |
+| `filter_comments`        | `def filter_comments(post_id: str, raw_comments: list[dict[str, Any]]) -> list[dict[str, Any]]`                                                                                                     | Apply comment-level vetoes                    | `reddit_validation.py` |
+| `is_comment_too_short`   | `def is_comment_too_short(body: str) -> bool`                                                                                                                                                       | Enforce minimum comment length                | `reddit_validation.py` |
+| `has_seen_comment`       | `def has_seen_comment(comment_id: str, seen_comment_ids: set[str]) -> bool`                                                                                                                         | Deduplicate comments per run                  | `reddit_validation.py` |
+| `_build_comment_payload` | `def _build_comment_payload(*, comment_id: str, post_id: str, cleaned_body: str, comment_karma: int) -> dict[str, Any]`                                                                             | Normalize filtered comment data               | `reddit_assembly.py`   |
+| `build_comment_models`   | `def build_comment_models(filtered_comments: list[dict[str, Any]], fetched_at: float) -> list[Comment]`                                                                                             | Convert payloads into `Comment` objects       | `reddit_assembly.py`   |
+| `build_post_model`       | `def build_post_model(*, raw_post: dict[str, Any], cleaned_title: str, cleaned_body: str, relevance_score: float, matched_keywords: list[str], comments: list[Comment], fetched_at: float) -> Post` | Construct `Post` objects from cleaned data    | `reddit_assembly.py`   |
+| `post_permalink`         | `def post_permalink(raw_post: dict[str, Any]) -> str`                                                                                                                                               | Produce canonical Reddit URL for a submission | `reddit_assembly.py`   |
 
 
 ---
@@ -57,7 +57,7 @@ _Functions currently implemented inside `services/fetch/reddit_fetcher.py`._
 
 **Happy Path (Critical)**
 - Enhance `reddit_client.py` with Tenacity-style retries/backoff and basic rate-limit handling (429 detection, structured exceptions).
-- Ensure all orchestrator calls go through the resilient client and catch `FetchError` / `RateLimitError` without crashing runs.
+- Ensure all orchestrator calls go through the resilient client and catch `RetryableFetchError` / `RateLimitError` without crashing runs.
 - Introduce a small thread pool (or staged hook) so multiple queries can fetch concurrently, but keep pool size conservative to respect rate limits.
 - Re-run preview/eval scripts to verify stability and measure runtime improvement.
 
