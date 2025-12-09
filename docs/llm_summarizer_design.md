@@ -57,11 +57,36 @@
 
 **3.3 SummarizeResult**
 
-- Brief description of what this represents (output from the summarizer step).
-- High-level shape (to be detailed later), e.g.:
-  - Core fields for the user-facing summary and key points.
-  - Source links back to Reddit posts.
-  - Status/metadata fields to indicate success vs failure.
+- Output contract returned by the summarizer/LLM layer.
+- Fields:
+  - `searched_subreddits: list[str]` – subreddits the planner/fetcher consulted for this run.
+  - `summary: str` – main narrative answer distilled from the context.
+  - `highlights: list[str]` – optional bullet points or key takeaways.
+  - `reference_links: list[ReferenceLink]` – citations pointing back to supporting posts.
+- `ReferenceLink` helper:
+  - `label: str` – human-friendly title for the reference.
+  - `url: str` – canonical link the user can follow.
+  - `subreddit: str | None` – subreddit name tied to this reference, if known.
+  - `post_id: str | None` – Reddit post identifier for cross-linking with `PostPayload`.
+- Quick REPL sanity check:
+  ```python
+  from services.summarizer.models import ReferenceLink, SummarizeResult
+
+  reference = ReferenceLink(
+      label="DIY wiring tips",
+      url="https://reddit.com/r/diy/comments/abc123/help/",
+      subreddit="diy",
+  )
+
+  result = SummarizeResult(
+      searched_subreddits=["diy", "homeimprovement"],
+      summary="Turn off power, label wires, and verify connections before rewiring.",
+      highlights=["Kill power at the breaker", "Use labels to track wires"],
+      reference_links=[reference],
+  )
+
+  print(result.model_dump())
+  ```
 
 **3.4 Validation & Error Behavior**
 
