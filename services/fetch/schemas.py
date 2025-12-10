@@ -27,6 +27,7 @@ class Post(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., description="Reddit post ID (submission.id)")
+    subreddit: str = Field (..., description="Source subreddit lowercase without 'r/' prefix (e.g., diy)")
     title: str = Field(..., description="Cleaned post title")
     selftext: str = Field(..., description="Cleaned body text of the post")
     post_karma: int = Field(
@@ -64,11 +65,6 @@ class Comment(BaseModel):
     source: Literal["reddit"] = Field(
         default="reddit", description="Data origin identifier"
     )
-
-# TO DO: 
-# Add a plan_id field to the Comment object.
-# Add a post_id field to the Comment object.
-# Add a fetched_at field to the Comment object.
 
 
 class FetchResult(BaseModel):

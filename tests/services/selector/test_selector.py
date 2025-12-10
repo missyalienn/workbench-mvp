@@ -46,6 +46,7 @@ def make_post(
     *,
     relevance_score: float,
     post_karma: int,
+    subreddit: str = "test",
     selftext: str = "Body",
     title: str = "Title",
     url: str = "https://reddit.com/r/test/comments/slug/title",
@@ -56,6 +57,7 @@ def make_post(
 
     return Post(
         id=post_id,
+        subreddit=subreddit,
         title=title,
         selftext=selftext,
         post_karma=post_karma,
