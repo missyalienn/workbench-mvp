@@ -46,7 +46,7 @@ def make_post(
     *,
     relevance_score: float,
     post_karma: int,
-    subreddit: str = "test",
+    subreddit: str = "test subreddit",
     selftext: str = "Body",
     title: str = "Title",
     url: str = "https://reddit.com/r/test/comments/slug/title",
@@ -125,7 +125,8 @@ def test_build_post_payload_trims_body() -> None:
         make_comment("c2", "ignored", comment_karma=1),
     ]
     post = make_post(
-        "p1",
+        "post_id_1",
+        subreddit= "test subreddit",
         relevance_score=0.9,
         post_karma=10,
         selftext="123456",
@@ -138,7 +139,7 @@ def test_build_post_payload_trims_body() -> None:
     assert payload.body_excerpt == "1234"
     assert payload.top_comment_excerpts == ["com"]
     assert payload.num_comments == 2
-    assert payload.subreddit == "home"
+    assert payload.subreddit == "test subreddit"
 
 
 def test_build_summarize_request_copies_metadata() -> None:

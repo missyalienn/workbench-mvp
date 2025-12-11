@@ -58,7 +58,7 @@ def build_post_payload(post: Post, cfg: SelectorConfig) -> PostPayload:
         body_excerpt = full_body
 
     top_comment_excerpts = build_comment_excerpts(post.comments, cfg)
-    subreddit = _extract_subreddit_from_url(post.url)
+    subreddit = post.subreddit
 
     return PostPayload(
         post_id=post.id,
