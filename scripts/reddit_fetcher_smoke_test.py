@@ -74,7 +74,7 @@ def _log_accepted_posts(fetch_result) -> None:
     max_preview = min(5, len(posts))
     logger.info("Accepted posts (showing %d of %d):", max_preview, len(posts))
     for post in posts[:max_preview]:
-        subreddit = _infer_subreddit(post.url)
+        subreddit = post.subreddit
         logger.info(
             "  - %s — %s (comments=%d, karma=%d) %s",
             subreddit,
@@ -83,20 +83,6 @@ def _log_accepted_posts(fetch_result) -> None:
             post.post_karma,
             post.url,
         )
-
-
-def _infer_subreddit(url: str) -> str:
-    marker = "/r/"
-    if marker in url:
-        start = url.index(marker) + len(marker)
-        end = url.find("/", start)
-        if end == -1:
-            end = len(url)
-        name = url[start:end]
-        if name:
-            return f"r/{name}"
-    return "r/?"
-
 
 if __name__ == "__main__":
     app()

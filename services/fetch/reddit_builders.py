@@ -44,8 +44,11 @@ def build_post_model(
     """Construct a Post model from cleaned data and metadata."""
     post_karma = raw_post.get("score")
     permalink = post_permalink(raw_post)
+    raw_subreddit = raw_post.get("subreddit") or ""
+    subreddit = raw_subreddit.lower().lstrip("r/") if isinstance(raw_subreddit, str) else ""
     return Post(
         id=raw_post["id"],
+        subreddit=subreddit,
         title=cleaned_title,
         selftext=cleaned_body,
         post_karma=int(post_karma) if isinstance(post_karma, (int, float)) else 0,
