@@ -61,7 +61,7 @@ def _post_preview(post, max_comments: int = 5) -> dict:
     ]
     return {
         "title": post.title,
-        "subreddit": _infer_subreddit(post.url),
+        "subreddit": post.subreddit,
         "permalink": post.url,
         "post_karma": post.post_karma,
         "relevance_score": post.relevance_score,
@@ -69,20 +69,6 @@ def _post_preview(post, max_comments: int = 5) -> dict:
         "comment_count": len(post.comments),
         "comments": comments_preview,
     }
-
-
-def _infer_subreddit(url: str) -> str:
-    marker = "/r/"
-    if marker in url:
-        start = url.index(marker) + len(marker)
-        end = url.find("/", start)
-        if end == -1:
-            end = len(url)
-        name = url[start:end]
-        if name:
-            return f"r/{name}"
-    return "r/?"
-
 
 @app.command()
 def run(

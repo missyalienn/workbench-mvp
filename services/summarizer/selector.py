@@ -98,27 +98,3 @@ def build_summarize_request(
         max_post_chars=cfg.max_post_chars,
         max_comment_chars=cfg.max_comment_chars,
     )
-
-
-
-
-def _extract_subreddit_from_url(url: str) -> str:
-    """Infer subreddit name from a Reddit URL (without the ``r/`` prefix)."""
-
-    # TODO: if this returns an empty string, ensure the prompt builder
-    #       treats it as an explicit \"unknown subreddit\" case rather
-    #       than silently omitting subreddit information.
-    marker = "/r/"
-    if marker not in url:
-        return ""
-
-    start = url.find(marker) + len(marker)
-    if start == -1:
-        return ""
-
-    end = url.find("/", start)
-    if end == -1:
-        end = len(url)
-
-    name = url[start:end]
-    return name or ""
