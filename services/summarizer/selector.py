@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .models import PostPayload, SummarizeRequest
 from services.selector.config import SelectorConfig
+from services.summarizer.config import SummarizerConfig
 from services.fetch.schemas import Comment, FetchResult, Post
 
 from config.logging_config import get_logger
@@ -78,13 +79,14 @@ def build_summarize_request(
     fetch_result: FetchResult,
     cfg: SelectorConfig,
     prompt_version: str,
+    summarizer_cfg: SummarizerConfig,
 ) -> SummarizeRequest:
     """
     Build a SummarizeRequest DTO from a FetchResult.
 
     - Selects top posts via select_posts.
     - Builds PostPayload objects for each selected post.
-    - Attaches query/plan_id, prompt version, and selector config metadata.
+    - Attaches query/plan_id, prompt version, selector config metadata, and summarizer limits.
     """
     selected_posts = select_posts(fetch_result, cfg)
     post_payloads = [build_post_payload(post, cfg) for post in selected_posts]
@@ -98,4 +100,7 @@ def build_summarize_request(
         max_comments_per_post=cfg.max_comments_per_post,
         max_post_chars=cfg.max_post_chars,
         max_comment_chars=cfg.max_comment_chars,
+        summary_char_budget=summarizer_cfg.summary_char_budget,
+        max_highlights=summarizer_cfg.max_highlights,
+        max_cautions=summarizer_cfg.max_cautions,
     )
