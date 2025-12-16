@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from .models import PostPayload, SelectorConfig, SummarizeRequest
+from .models import PostPayload, SummarizeRequest
+from services.selector.config import SelectorConfig
 from services.fetch.schemas import Comment, FetchResult, Post
 
 from config.logging_config import get_logger

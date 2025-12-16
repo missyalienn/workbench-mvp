@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import UUID, uuid4
 
 from services.fetch.schemas import Comment, FetchResult, Post
-from services.summarizer.models import SelectorConfig
+from services.selector.config import SelectorConfig
 from services.summarizer.selector import (
     build_comment_excerpts,
     build_post_payload,

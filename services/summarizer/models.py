@@ -8,18 +8,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.types import PositiveInt
 
-
-class SelectorConfig(BaseModel):
-    """Configuration for the selector component."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    max_posts: int = Field(..., description="Max number of posts for LLM context")
-    max_comments_per_post: int = Field(..., description="Max number of comments per post for LLM context")
-    max_post_chars: PositiveInt = Field(..., description="Max number of characters allowed in post excerpt")
-    max_comment_chars: PositiveInt = Field(..., description="Max number of characters allowed in comment excerpt")
-
-
 class PostPayload(BaseModel):
     """Compact representation of a Reddit post passed to the summarizer."""
 
@@ -88,4 +76,4 @@ class SummarizeResult(BaseModel):
         description="Prompt template version used for this result",
     )
 
-__all__ = ["SelectorConfig", "PostPayload", "SummarizeRequest", "SummarizeResult"]
+__all__ = ["PostPayload", "SummarizeRequest", "SummarizeResult"]
