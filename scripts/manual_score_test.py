@@ -18,7 +18,7 @@ if __package__ is None or __package__ == "":
 from config.logging_config import configure_logging, get_logger
 from services.reddit_client import RedditClient
 from services.fetch.scoring import evaluate_post_relevance
-from services.fetch.utils.text_utils import clean_text
+from services.fetch.text_utils import clean_text
 
 DEFAULT_SUBREDDITS = ["diy"]
 DEFAULT_TERMS = ["leaky faucet fix"]
