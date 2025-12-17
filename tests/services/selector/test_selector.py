@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
+import pytest
+from pydantic import ValidationError
+
 from services.fetch.schemas import Comment, FetchResult, Post
-from services.summarizer.models import SelectorConfig
+from services.selector.config import SelectorConfig
+from services.summarizer.config import SummarizerConfig
 from services.summarizer.selector import (
     build_comment_excerpts,
     build_post_payload,
@@ -142,6 +146,19 @@ def test_build_post_payload_trims_body() -> None:
     assert payload.subreddit == "test subreddit"
 
 
+def test_build_post_payload_rejects_invalid_url() -> None:
+    cfg = make_cfg()
+    post = make_post(
+        "bad_url_post",
+        relevance_score=0.5,
+        post_karma=5,
+        url="not-a-valid-url",
+    )
+
+    with pytest.raises(ValidationError):
+        build_post_payload(post, cfg)
+
+
 def test_build_summarize_request_copies_metadata() -> None:
     cfg = make_cfg(max_posts=1)
     posts = [
@@ -150,7 +167,12 @@ def test_build_summarize_request_copies_metadata() -> None:
     ]
     fetch_result = make_fetch_result(posts, query="how to test?", plan_id=uuid4())
 
-    request = build_summarize_request(fetch_result, cfg, prompt_version="v1")
+    summarizer_cfg = SummarizerConfig(
+        summary_char_budget=1024,
+        max_highlights=5,
+        max_cautions=3,
+    )
+    request = build_summarize_request(fetch_result, cfg, prompt_version="v1", summarizer_cfg=summarizer_cfg)
 
     assert request.query == "how to test?"
     assert request.plan_id == fetch_result.plan_id
@@ -158,3 +180,6 @@ def test_build_summarize_request_copies_metadata() -> None:
     assert request.max_posts == cfg.max_posts
     assert len(request.post_payloads) == 1
     assert request.post_payloads[0].post_id == "p1"
+    assert request.summary_char_budget == summarizer_cfg.summary_char_budget
+    assert request.max_highlights == summarizer_cfg.max_highlights
+    assert request.max_cautions == summarizer_cfg.max_cautions
