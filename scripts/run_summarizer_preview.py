@@ -1,4 +1,4 @@
-"""Smoke-test harness for the summarizer pipeline."""
+"""Smoke-test harness for the curator pipeline."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from services.summarizer.llm_execution.errors import (
 from services.summarizer.llm_execution.llm_client import OpenAILLMClient
 from services.summarizer.llm_execution.prompt_builder import build_messages
 from services.summarizer.llm_execution.types import PromptMessage
-from services.summarizer.models import SummarizeRequest, SummarizeResult
+from services.summarizer.models import SummarizeRequest, CurationResult
 from services.summarizer.selector import build_summarize_request
 from services.selector.config import SelectorConfig
 
@@ -57,7 +57,7 @@ def _build_selector_config(cfg: dict[str, Any]) -> SelectorConfig:
     )
 
 
-def _build_summarizer_config(cfg: dict[str, Any]) -> SummarizerConfig:
+def _build_curator_config(cfg: dict[str, Any]) -> SummarizerConfig:
     return SummarizerConfig(
         summary_char_budget=cfg["summary_char_budget"],
         max_highlights=cfg["max_highlights"],
@@ -68,7 +68,7 @@ def _build_summarizer_config(cfg: dict[str, Any]) -> SummarizerConfig:
 def _build_request(
     fetch_result: Any,
     selector_cfg: SelectorConfig,
-    summarizer_cfg: SummarizerConfig,
+    curator_cfg: SummarizerConfig,
     prompt_version: str,
 ) -> SummarizeRequest:
     """Build the SummarizeRequest from a FetchResult."""
@@ -76,7 +76,7 @@ def _build_request(
         fetch_result,
         selector_cfg,
         prompt_version,
-        summarizer_cfg,
+        curator_cfg,
     )
 
 
@@ -88,7 +88,7 @@ def _build_messages(request: SummarizeRequest) -> list[PromptMessage]:
 def _summarize(
     llm_client: OpenAILLMClient,
     messages: list[PromptMessage],
-) -> SummarizeResult:
+) -> CurationResult:
     return llm_client.summarize_structured(messages=messages)
 
 
@@ -110,14 +110,14 @@ def run(
         help="Mode to run: fixture_only or fixture_and_llm.",
     ),
 ) -> None:
-    """Run the summarizer smoke test for one or more queries."""
+    """Run the curator smoke test for one or more queries."""
     cfg = _load_config(config)
 
-    logger.info("Loaded summarizer smoke-test config from %s", config)
+    logger.info("Loaded curator smoke-test config from %s", config)
 
     queries = _resolve_queries(cfg, query)
     selector_cfg = _build_selector_config(cfg)
-    summarizer_cfg = _build_summarizer_config(cfg)
+    curator_cfg = _build_curator_config(cfg)
     openai_env = cfg.get("openai_environment", "openai-dev")
     model = cfg.get("model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
@@ -133,7 +133,7 @@ def run(
     llm_client = OpenAILLMClient(client=client, model=model)
 
     logger.info(
-        "Summarizer smoke test starting (queries=%d, model=%s, prompt_version=%s).",
+        "Curator smoke test starting (queries=%d, model=%s, prompt_version=%s).",
         len(queries),
         model,
         prompt_version,
@@ -142,10 +142,10 @@ def run(
 
     preview_payload: list[dict[str, Any]] = []
     llm_error_occurred = False
-    output_dir = Path("data/summarizer_previews")
+    output_dir = Path("data/curator_previews")
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    output_name = cfg.get("output_filename") or f"summarizer_preview_{timestamp}.json"
+    output_name = cfg.get("output_filename") or f"curator_preview_{timestamp}.json"
     output_path = output_dir / output_name
 
     for query_text in queries:
@@ -189,7 +189,7 @@ def run(
         request = _build_request(
             fetch_result,
             selector_cfg,
-            summarizer_cfg,
+            curator_cfg,
             prompt_version,
         )
         counts = _preview_counts(request)
@@ -222,8 +222,14 @@ def run(
             llm_start = time.perf_counter()
             messages = _build_messages(request)
             result = _summarize(llm_client, messages)
+            logger.info(
+                "OpenAI Responses API returned CurationResult (model=%s, prompt_version=%s, query=%s)",
+                model,
+                prompt_version,
+                query_text,
+            )
             llm_ms = int((time.perf_counter() - llm_start) * 1000)
-            record["summarize_result"] = result.model_dump(mode="json")
+            record["curation_result"] = result.model_dump(mode="json")
             record["meta"]["timing_ms"]["llm_ms"] = llm_ms
         except LLMStructuredOutputError as exc:
             logger.error(
@@ -281,7 +287,7 @@ def run(
         return
 
     output_path.write_text(json.dumps(preview_payload, indent=2), encoding="utf-8")
-    logger.info("Summarizer preview saved to %s", output_path)
+    logger.info("Curator preview saved to data/curator_previews/%s", output_name)
 
 
 if __name__ == "__main__":
