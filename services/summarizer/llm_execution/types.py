@@ -1,11 +1,11 @@
-"""Shared types for the summarizer LLM execution layer."""
+"""Shared types for the curator LLM execution layer."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from services.summarizer.models import SummarizeResult
+from services.summarizer.models import CurationResult
 
 MessageRole = Literal["system", "user", "assistant"]
 
@@ -16,11 +16,11 @@ class PromptMessage:
 
 
 class LLMClient(Protocol):
-    """ Structured output interface for an LLM client used by the summarizer. """
+    """Structured output interface for an LLM client used by the curator."""
 
     def summarize_structured(
         self,
         *,
         messages: list[PromptMessage],
-    ) -> SummarizeResult:
+    ) -> CurationResult:
         ...
