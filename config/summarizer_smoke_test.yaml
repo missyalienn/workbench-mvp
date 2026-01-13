@@ -5,7 +5,7 @@ queries:
   - "how to caulk bathtub"
   - "how to repair holes in drywall"
 
-prompt_version: "v1"
+prompt_version: "v2"
 
 post_limit: 10
 

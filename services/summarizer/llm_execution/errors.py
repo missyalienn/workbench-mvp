@@ -1,4 +1,4 @@
-"""Exception types for the summarizer LLM execution layer."""
+"""Exception types for the curator LLM execution layer."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Any
 
 
 class SummarizerLLMError(Exception):
-    """Base class for all summarizer LLM execution layer errors.
+    """Base class for all curator LLM execution layer errors.
 
     Attributes:
         details: Optional structured context for logging/diagnostics.
@@ -30,8 +30,8 @@ class LLMTransportError(SummarizerLLMError):
 
 
 class LLMStructuredOutputError(SummarizerLLMError):
-    """Failed to obtain a valid structured SummarizeResult (schema/validation/parsing)."""
+    """Failed to obtain a valid structured CurationResult (schema/validation/parsing)."""
 
 
 class ContractViolationError(SummarizerLLMError):
-    """A valid DTO was returned, but it violated summarizer contract rules (budgets/caps/version)."""
+    """A valid DTO was returned, but it violated curator contract rules (budgets/caps/version)."""

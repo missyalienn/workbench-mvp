@@ -1,4 +1,4 @@
-"""Prompt builder for the summarizer LLM layer.
+"""Prompt builder for the curator LLM layer.
 
 Pure function(s) that render prompt messages from SummarizeRequest.
 No network calls. No parsing. Deterministic output for a given request.
@@ -15,45 +15,39 @@ from .types import PromptMessage
 
 def _build_system_content(request: SummarizeRequest) -> str:
     lines = [
-        "You summarize Reddit posts/comments to answer the user's query.",
-        "",
-        "Return output that matches SummarizeResult exactly. Return JSON only. Do not add extra keys.",
+        "You are an evidence curator for the user’s query.",
+        "Do NOT answer the question, give advice, or provide summaries.",
+        "Return output that matches CurationResult exactly. Return JSON only. Do not add extra keys.",
         "",
         "Fields (exact):",
         '- status: "ok" | "partial" | "error"',
-        f"- summary: string (<= {request.summary_char_budget} characters)",
-        f"- highlights: list of strings (max {request.max_highlights})",
-        f"- cautions: list of strings (max {request.max_cautions})",
-        "- sources: list of objects with keys: url, post_id, subreddit, title, excerpt, supports",
-        "- prompt_version: must equal the request prompt_version exactly",
+        "- threads: list of ThreadEvidence objects (ranked best-to-worst)",
+        "- limitations: list of 1–2 short strings explaining why evidence is thin or why threads are empty",
+        "- prompt_version: must equal the request prompt_version exactly (current contract v2)",
         "",
-        "Evidence selection rules (do NOT output your selection; use it internally):",
-        "- Before writing, decide which provided post_payloads are relevant to the query.",
-        "- Evidence is ONLY the provided body_excerpt and top_comment_excerpts from the provided payloads.",
-        "- Do NOT use general knowledge, “common sense”, or unstated assumptions. If something is not in the evidence, you must not claim it.",
+        "ThreadEvidence requirements:",
+        "- rank: integer position in ranked order (1..N)",
+        "- post_id: copy from the provided post payload",
+        "- title: copy from the provided post payload",
+        "- subreddit: copy from the provided post payload",
+        "- url: copy from the provided post payload; do not invent new URLs",
+        "- relevance_score: copy from the provided post payload",
         "",
-        "Synthesis rules:",
-        "- Write summary, highlights, and cautions using ONLY the selected evidence.",
-        "- Do NOT introduce tools, materials, steps, measurements, safety instructions, or claims that do not appear in the evidence text.",
-        "- Prefer fewer, higher-confidence claims over broad coverage.",
-        '- If evidence is weak, incomplete, or conflicting, set status="partial" and explain why in cautions.',
-        '- If evidence is not relevant to the query, set status="error" and explain briefly in summary; keep lists minimal.',
+        "Evidence rules:",
+        "- Use ONLY the provided post_payloads (body_excerpt and top_comment_excerpts) as evidence.",
+        "- Outputs must reference URLs/post_ids present in those payloads.",
+        "- Do NOT invent posts, titles, subreddits, or scores.",
         "",
-        "Source rules (grounding):",
-        "- You may ONLY cite URLs that appear in the provided post_payloads (no new URLs).",
-        "- Every highlight must be supported by at least one source entry.",
-        "- Each source object must include these keys (all values must be strings):",
-        "  - url: the cited post URL from the provided payloads",
-        "  - post_id: the cited post ID from the provided payloads",
-        "  - subreddit: the cited subreddit from the provided payloads",
-        "  - title: the cited post title from the provided payloads",
-        "  - excerpt: a short snippet copied verbatim from body_excerpt or a top_comment_excerpts entry",
-        "  - supports: the highlight text (or a clearly identifying substring) that this source supports",
-        "- The excerpt must be an exact quote from the evidence (no paraphrase) and should make the support obvious.",
+        "Relevance rules:",
+        "- Include only threads that clearly relate to the user’s query.",
+        "- Prefer posts with higher relevance_score and stronger textual relevance.",
+        "- If evidence is thin or ambiguous, return fewer threads and set status=\"partial\" and list 1–2 brief coverage/relevance reasons in limitations.",
+        "- If nothing is clearly relevant, set status=\"error\" and return an empty threads list with a single brief coverage/relevance limitation.",
         "",
-        "Caps:",
-        f"- summary must be <= {request.summary_char_budget} characters.",
-        f"- highlights length <= {request.max_highlights}; cautions length <= {request.max_cautions}.",
+        "Limitation rules:",
+        "- `limitations` entries must focus on evidence coverage, relevance, or quality (e.g., limited sample, conflicting anecdotes, loose match to query).",
+        "- Do NOT mention step-by-step, how-to, instructions, or recommendations in `limitations`.",
+        "- Keep each `limitations` entry concise (<=150 characters) and do not narrate the user’s question.",
     ]
     return "\n".join(lines)
 
@@ -76,7 +70,7 @@ def _build_user_content(request: SummarizeRequest) -> str:
 
 
 def build_messages(request: SummarizeRequest) -> list[PromptMessage]:
-    """Build system + user messages for the summarizer LLM."""
+    """Build system + user messages for the curator LLM."""
     return [
         PromptMessage(role="system", content=_build_system_content(request)),
         PromptMessage(role="user", content=_build_user_content(request)),
