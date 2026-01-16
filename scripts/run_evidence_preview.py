@@ -1,4 +1,4 @@
-"""Smoke-test harness for the curator pipeline."""
+"""Preview harness for the evidence pipeline."""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def _build_request(
 
 
 def _build_messages(request: EvidenceRequest) -> list[PromptMessage]:
-    """Build prompt messages for a SummarizeRequest."""
+    """Build prompt messages for a EvidenceRequest."""
     return build_messages(request)
 
 
@@ -110,10 +110,10 @@ def run(
         help="Mode to run: fixture_only or fixture_and_llm.",
     ),
 ) -> None:
-    """Run the curator smoke test for one or more queries."""
+    """Run the evidence preview for one or more queries."""
     cfg = _load_config(config)
 
-    logger.info("Loaded curator smoke-test config from %s", config)
+    logger.info("Loaded evidence preview config from %s", config)
 
     queries = _resolve_queries(cfg, query)
     selector_cfg = _build_selector_config(cfg)
@@ -142,10 +142,10 @@ def run(
 
     preview_payload: list[dict[str, Any]] = []
     llm_error_occurred = False
-    output_dir = Path("data/curator_previews")
+    output_dir = Path("data/evidence_previews")
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    output_name = cfg.get("output_filename") or f"curator_preview_{timestamp}.json"
+    output_name = cfg.get("output_filename") or f"evidence_preview_{timestamp}.json"
     output_path = output_dir / output_name
 
     for query_text in queries:
@@ -256,7 +256,7 @@ def run(
             messages = _build_messages(request)
             result = _summarize(llm_client, messages)
             logger.info(
-                "OpenAI Responses API returned CurationResult (model=%s, prompt_version=%s, query=%s)",
+                "OpenAI Responses API returned EvidenceResult (model=%s, prompt_version=%s, query=%s)",
                 model,
                 prompt_version,
                 query_text,
@@ -320,7 +320,7 @@ def run(
         return
 
     output_path.write_text(json.dumps(preview_payload, indent=2), encoding="utf-8")
-    logger.info("Curator preview saved to data/curator_previews/%s", output_name)
+    logger.info("Evidence preview saved to data/evidence_previews/%s", output_name)
 
 
 if __name__ == "__main__":

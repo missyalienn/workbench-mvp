@@ -60,6 +60,8 @@ def configure_logging() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("markdown_it").setLevel(logging.WARNING)
+    logging.getLogger("services.fetch.reddit_fetcher").setLevel(logging.WARNING)
+    logging.getLogger("services.fetch.comment_pipeline").setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured at {settings.LOG_LEVEL.upper()} level.")
