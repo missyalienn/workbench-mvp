@@ -1,6 +1,6 @@
 """Prompt builder for the curator LLM layer.
 
-Pure function(s) that render prompt messages from SummarizeRequest.
+Pure function(s) that render prompt messages from EvidenceRequest.
 No network calls. No parsing. Deterministic output for a given request.
 """
 
@@ -15,39 +15,33 @@ from .types import PromptMessage
 
 def _build_system_content(request: EvidenceRequest) -> str:
     lines = [
-        "You are an evidence curator for the user’s query.",
-        "Do NOT answer the question, give advice, or provide summaries.",
-        "Return output that matches CurationResult exactly. Return JSON only. Do not add extra keys.",
+        "You are an evidence curator for the user's query.",
+        "Return only JSON matching EvidenceResult schema. No summaries, advice, or extra keys.",
         "",
-        "Fields (exact):",
+        "Fields:",
         '- status: "ok" | "partial" | "error"',
-        "- threads: list of ThreadEvidence objects (ranked best-to-worst)",
-        "- limitations: list of 1–2 short strings explaining why evidence is thin or why threads are empty",
-        "- prompt_version: must equal the request prompt_version exactly (current contract v2)",
+        "- threads: list of ThreadEvidence (ranked best-to-worst)",
+        "- limitations: 1-2 short strings explaining thin/empty evidence",
+        "- prompt_version: must match request prompt_version exactly (current: v3)",
         "",
-        "ThreadEvidence requirements:",
-        "- rank: integer position in ranked order (1..N)",
-        "- post_id: copy from the provided post payload",
-        "- title: copy from the provided post payload",
-        "- subreddit: copy from the provided post payload",
-        "- url: copy from the provided post payload; do not invent new URLs",
-        "- relevance_score: copy from the provided post payload",
+        "ThreadEvidence: rank (1..N), copy post_id/title/subreddit/url/relevance_score exactly from payload.",
         "",
         "Evidence rules:",
-        "- Use ONLY the provided post_payloads (body_excerpt and top_comment_excerpts) as evidence.",
-        "- Outputs must reference URLs/post_ids present in those payloads.",
-        "- Do NOT invent posts, titles, subreddits, or scores.",
+        "- Use ONLY provided post_payloads (body_excerpt, top_comment_excerpts).",
+        "- Do NOT invent posts, titles, subreddits, scores, or URLs.",
         "",
         "Relevance rules:",
-        "- Include only threads that clearly relate to the user’s query.",
-        "- Prefer posts with higher relevance_score and stronger textual relevance.",
-        "- If evidence is thin or ambiguous, return fewer threads and set status=\"partial\" and list 1–2 brief coverage/relevance reasons in limitations.",
-        "- If nothing is clearly relevant, set status=\"error\" and return an empty threads list with a single brief coverage/relevance limitation.",
+        "- Include only threads clearly relating to user's query.",
+        "- Prefer higher relevance_score and stronger textual match.",
+        "- Thin/ambiguous evidence: return fewer threads, status='partial', add limitations.",
+        "- No relevant evidence: status='error', empty threads list, add limitation.",
         "",
-        "Limitation rules:",
-        "- `limitations` entries must focus on evidence coverage, relevance, or quality (e.g., limited sample, conflicting anecdotes, loose match to query).",
-        "- Do NOT mention step-by-step, how-to, instructions, or recommendations in `limitations`.",
-        "- Keep each `limitations` entry concise (<=150 characters) and do not narrate the user’s question.",
+        "Limitations:",
+        "- Describe gaps in EVIDENCE ONLY (thread count, coverage, quality).",
+        "- Never mention: 'step-by-step', 'instructions', 'how-to', 'advice', 'recommendations'.",
+        "- Keep under 150 chars each.",
+        "- Good: 'Only 4 threads found; most discuss metal studs vs. standard drywall.'",
+        "- Bad: 'Limited installation instructions.' (mentions instructions)",
     ]
     return "\n".join(lines)
 

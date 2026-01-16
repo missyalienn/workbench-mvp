@@ -89,7 +89,7 @@ def run_evidence_pipeline(
     openai_env = cfg.get("openai_environment", "openai-dev")
     model = cfg.get("model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
-    prompt_version = cfg.get("prompt_version", "v1")
+    prompt_version = cfg.get("prompt_version", "v3")
     allow_llm = cfg.get("allow_llm", False)
     if not allow_llm:
         # TODO(mallan): define fixture-only or fallback behavior for allow_llm=false.
