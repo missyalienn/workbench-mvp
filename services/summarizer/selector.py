@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from .models import PostPayload, SummarizeRequest
+from .models import PostPayload, EvidenceRequest
 from services.selector.config import SelectorConfig
-from services.summarizer.config import SummarizerConfig
+from services.summarizer.config import EvidenceOutputConfig
 from services.fetch.schemas import Comment, FetchResult, Post
 
 from config.logging_config import get_logger
@@ -79,8 +79,8 @@ def build_summarize_request(
     fetch_result: FetchResult,
     cfg: SelectorConfig,
     prompt_version: str,
-    summarizer_cfg: SummarizerConfig,
-) -> SummarizeRequest:
+    summarizer_cfg: EvidenceOutputConfig,
+) -> EvidenceRequest:
     """
     Build a SummarizeRequest DTO from a FetchResult.
 
@@ -91,7 +91,7 @@ def build_summarize_request(
     selected_posts = select_posts(fetch_result, cfg)
     post_payloads = [build_post_payload(post, cfg) for post in selected_posts]
 
-    return SummarizeRequest(
+    return EvidenceRequest(
         query=fetch_result.query,
         plan_id=fetch_result.plan_id,
         post_payloads=post_payloads,

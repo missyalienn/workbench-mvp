@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import json
 
-from services.summarizer.models import SummarizeRequest
+from services.summarizer.models import EvidenceRequest
 
 from .types import PromptMessage
 
 
-def _build_system_content(request: SummarizeRequest) -> str:
+def _build_system_content(request: EvidenceRequest) -> str:
     lines = [
         "You are an evidence curator for the user’s query.",
         "Do NOT answer the question, give advice, or provide summaries.",
@@ -52,7 +52,7 @@ def _build_system_content(request: SummarizeRequest) -> str:
     return "\n".join(lines)
 
 
-def _build_user_content(request: SummarizeRequest) -> str:
+def _build_user_content(request: EvidenceRequest) -> str:
     payload = {
         "query": request.query,
         "prompt_version": request.prompt_version,
@@ -69,7 +69,7 @@ def _build_user_content(request: SummarizeRequest) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
-def build_messages(request: SummarizeRequest) -> list[PromptMessage]:
+def build_messages(request: EvidenceRequest) -> list[PromptMessage]:
     """Build system + user messages for the curator LLM."""
     return [
         PromptMessage(role="system", content=_build_system_content(request)),

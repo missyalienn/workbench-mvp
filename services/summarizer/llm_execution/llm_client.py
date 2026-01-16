@@ -9,7 +9,7 @@ from __future__ import annotations
 from openai import OpenAI
 from pydantic import ValidationError
 
-from services.summarizer.models import CurationResult
+from services.summarizer.models import EvidenceResult
 
 from .errors import LLMStructuredOutputError, LLMTransportError
 from .types import LLMClient, PromptMessage
@@ -22,7 +22,7 @@ class OpenAILLMClient(LLMClient):
         self._client = client
         self._model = model
 
-    def summarize_structured(self, *, messages: list[PromptMessage]) -> CurationResult:
+    def summarize_structured(self, *, messages: list[PromptMessage]) -> EvidenceResult:
         """Return a validated CurationResult or raise a typed error."""
         payload = [ {"role": message.role, "content": message.content} for message in messages]
       
@@ -31,7 +31,7 @@ class OpenAILLMClient(LLMClient):
             response = self._client.responses.parse(
                 model=self._model,
                 input=payload,
-                text_format=CurationResult,
+                text_format=EvidenceResult,
             )
 
         except ValidationError as e:

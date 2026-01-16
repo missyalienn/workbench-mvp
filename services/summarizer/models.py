@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.types import PositiveInt
 
 class PostPayload(BaseModel):
@@ -31,7 +31,7 @@ class PostPayload(BaseModel):
     )
 
 
-class SummarizeRequest(BaseModel):
+class EvidenceRequest(BaseModel):
     """Input contract consumed by the curator/LLM layer."""
 
     model_config = ConfigDict(extra="forbid")
@@ -65,7 +65,7 @@ class ThreadEvidence(BaseModel):
     relevance_score: float = Field(..., description="Fetcher-assigned relevance score")
 
 
-class CurationResult(BaseModel):
+class EvidenceResult(BaseModel):
     """Evidence-first research payload listing the most relevant threads."""
 
     model_config = ConfigDict(extra="forbid")
@@ -87,4 +87,4 @@ class CurationResult(BaseModel):
         description="Prompt template version used for this run",
     )
 
-__all__ = ["PostPayload", "SummarizeRequest", "ThreadEvidence", "CurationResult"]
+__all__ = ["PostPayload", "EvidenceRequest", "ThreadEvidence", "EvidenceResult"]

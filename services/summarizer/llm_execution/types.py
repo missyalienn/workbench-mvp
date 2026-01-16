@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from services.summarizer.models import CurationResult
+from services.summarizer.models import EvidenceResult
 
 MessageRole = Literal["system", "user", "assistant"]
 
@@ -22,5 +22,5 @@ class LLMClient(Protocol):
         self,
         *,
         messages: list[PromptMessage],
-    ) -> CurationResult:
+    ) -> EvidenceResult:
         ...

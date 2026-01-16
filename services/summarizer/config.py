@@ -6,8 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.types import PositiveInt
 
 
-class SummarizerConfig(BaseModel):
-    """Runtime limits for curation behavior."""
+class EvidenceOutputConfig(BaseModel):
+    """Runtime limits for evidence output behavior."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -16,4 +16,4 @@ class SummarizerConfig(BaseModel):
     max_cautions: PositiveInt = Field(..., description="Maximum caution items permitted")
 
 
-__all__ = ["SummarizerConfig"]
+__all__ = ["EvidenceOutputConfig"]

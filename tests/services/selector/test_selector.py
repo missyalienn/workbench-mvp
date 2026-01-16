@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from services.fetch.schemas import Comment, FetchResult, Post
 from services.selector.config import SelectorConfig
-from services.summarizer.config import SummarizerConfig
+from services.summarizer.config import EvidenceOutputConfig
 from services.summarizer.selector import (
     build_comment_excerpts,
     build_post_payload,
@@ -167,7 +167,7 @@ def test_build_summarize_request_copies_metadata() -> None:
     ]
     fetch_result = make_fetch_result(posts, query="how to test?", plan_id=uuid4())
 
-    summarizer_cfg = SummarizerConfig(
+    summarizer_cfg = EvidenceOutputConfig(
         summary_char_budget=1024,
         max_highlights=5,
         max_cautions=3,
