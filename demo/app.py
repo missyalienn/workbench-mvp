@@ -15,5 +15,5 @@ def read_root():
     return {"message": "Hello, World!"}
 
 @app.post("/api/demo")
-def run_evidence(body: DemoQueryRequest):
+def run_demo(body: DemoQueryRequest):
     return run_evidence_pipeline(body.query)
