@@ -1,25 +1,25 @@
-import type { DemoResponse, ApiError } from "../types/api";
+import type { DemoApiResponse, ApiError } from "../types/api";
 
-const API_URL = "http://localhost:8000/api/demo";
+const DEMO_ENDPOINT_URL = "http://localhost:8000/api/demo";
 const TIMEOUT_MS = 60000;
 
-export async function fetchDemo(
+export async function submitDemoQuery(
   query: string
-): Promise<{ data?: DemoResponse; error?: ApiError }> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+): Promise<{ response?: DemoApiResponse; error?: ApiError }> {
+  const requestAbortController = new AbortController();
+  const requestTimeoutId = setTimeout(() => requestAbortController.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(DEMO_ENDPOINT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ query }),
-      signal: controller.signal,
+      signal: requestAbortController.signal,
     });
 
-    clearTimeout(timeoutId);
+    clearTimeout(requestTimeoutId);
 
     if (response.status === 429) {
       return {
@@ -39,10 +39,10 @@ export async function fetchDemo(
       };
     }
 
-    const data: DemoResponse = await response.json();
-    return { data };
+    const apiResponse: DemoApiResponse = await response.json();
+    return { response: apiResponse };
   } catch (error) {
-    clearTimeout(timeoutId);
+    clearTimeout(requestTimeoutId);
 
     if (error instanceof Error) {
       if (error.name === "AbortError") {

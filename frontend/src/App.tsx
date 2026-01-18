@@ -1,35 +1,58 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import type { ThreadEvidence } from "./types/api";
+import { Footer } from "./components/Footer";
+import { Header } from "./components/Header";
+import { LoadingState } from "./components/LoadingState";
+import { QueryBox } from "./components/QueryBox";
+import { ResultsList } from "./components/ResultsList";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const sampleThreads: ThreadEvidence[] = [
+    {
+      rank: 1,
+      post_id: "abc123",
+      title: "Best caulk for a bathtub and tips to avoid mold?",
+      subreddit: "homeimprovement",
+      url: "https://www.reddit.com/r/homeimprovement/",
+      relevance_score: 0.92,
+    },
+    {
+      rank: 2,
+      post_id: "def456",
+      title: "How to remove old caulk cleanly before re-caulking",
+      subreddit: "diy",
+      url: "https://www.reddit.com/r/diy/",
+      relevance_score: 0.84,
+    },
+  ];
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <main className="min-h-screen bg-white text-black">
+      <div className="max-w-5xl mx-auto px-6 py-14 space-y-16">
+        <Header />
+
+        <section className="space-y-8">
+          <div className="text-center space-y-3">
+            <h2 className="text-[40px] font-semibold tracking-[-0.04em] leading-none">
+              Ask a question.
+            </h2>
+            <p className="text-xl text-[#999999]">
+              How do I hang floating shelves?
+            </p>
+          </div>
+          <QueryBox onSubmit={() => {}} />
+        </section>
+
+        <section className="space-y-4">
+          <h3 className="text-center text-[40px] font-semibold tracking-[-0.04em] text-[#999999]">
+            Ranked results, verified sources.
+          </h3>
+          <ResultsList threads={sampleThreads} />
+        </section>
+
+        <Footer />
       </div>
-      <h1>Chip's Demo Workbench</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </main>
+  );
 }
 
-export default App
+export default App;

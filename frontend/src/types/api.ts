@@ -20,7 +20,7 @@ export interface EvidenceResult {
   prompt_version: string;
 }
 
-export interface DemoResponse {
+export interface DemoApiResponse {
   search_plan: SearchPlan;
   evidence_result: EvidenceResult;
 }
