@@ -9,14 +9,8 @@
  *   onHowItWorksClick={handleHowItWorksClick}
  * />
  */
-import { useState } from "react";
-import { Check, Search, SendHorizontal } from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { useRef, useState } from "react";
+import { Search, SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -55,9 +49,7 @@ export function WorkbenchLanding({
   onHowItWorksClick,
 }: WorkbenchLandingProps) {
   const [query, setQuery] = useState("");
-  const [howItWorksValue, setHowItWorksValue] = useState<string | undefined>(
-    undefined
-  );
+  const hasFiredHowItWorks = useRef(false);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -68,12 +60,15 @@ export function WorkbenchLanding({
     onSearch(trimmedQuery);
   };
 
-  const handleHowItWorksToggle = (value: string | undefined) => {
-    setHowItWorksValue(value);
-    if (value === "how-it-works") {
-      onHowItWorksClick();
+  const handleHowItWorksImpression = () => {
+    if (hasFiredHowItWorks.current) {
+      return;
     }
+    hasFiredHowItWorks.current = true;
+    onHowItWorksClick();
   };
+
+
 
   return (
     <main className="min-h-screen bg-[#f7f7f5] text-[#1e1b4b]">
@@ -84,16 +79,19 @@ export function WorkbenchLanding({
 
         <section className="px-2 text-center">
           <div className="space-y-4">
-            <TypographyH1 className="text-balance text-[32px] font-bold leading-[1.1] text-[#262162] md:text-[44px]">
-              AI-powered answers for DIY and home improvement.
+            <TypographyH1 className="text-balance text-[32px] font-semibold leading-[1.1] tracking-[0.005em] text-[#262162] md:text-[44px]">
+              AI research that cites its sources.
             </TypographyH1>
-            <TypographyH2 className="mx-auto max-w-2xl border-b-0 pb-0 text-[18px] font-normal text-[#5b5b73] md:text-[20px]">
-              Ranked Reddit discussions with source links.
+            <TypographyH2 className="mx-auto max-w-xl border-b-0 pb-0 text-[18px] font-normal leading-[1.4] tracking-[0.01em] text-[#62627a] md:text-[22px]">
+              <span className="block">
+                Ranked answers from DIY communities on Reddit.
+              </span>
+              <span className="block">Built to surface signal, not noise.</span>
             </TypographyH2>
           </div>
         </section>
 
-        <section className="px-2 text-center pt-4">
+        <section className="px-2 pb-10 text-center pt-4">
           <div className="space-y-3">
             <TypographyH1 className="border-b-0 pb-0 text-[28px] font-normal text-[#262162] md:text-[36px]">
               Start with a DIY topic or question.
@@ -101,20 +99,20 @@ export function WorkbenchLanding({
           </div>
           <form onSubmit={handleSubmit} className="mt-3">
             <div className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-[20px] border border-[#d0d0de] bg-[#fbfbfc] px-2 py-1 text-[#262162] shadow-sm transition-all duration-300 focus-within:border-[#262162] focus-within:ring-2 focus-within:ring-[#b9b9da] md:max-w-xl">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#262162] shadow-sm">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#262162] shadow-sm">
                 <Search className="h-5 w-5" />
               </span>
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="how do i hang floating shelves?"
-                className="h-12 flex-1 border-0 bg-transparent px-1 text-base text-[#262162] placeholder:text-[#8f8faa] focus-visible:ring-0 focus-visible:ring-offset-0 md:text-lg"
+                className="h-10 flex-1 border-0 bg-transparent px-1 text-base text-[#262162] placeholder:text-[#8f8faa] focus-visible:ring-0 focus-visible:ring-offset-0 md:text-lg"
               />
               <Button
                 type="submit"
                 size="icon"
                 variant="ghost"
-                className="h-11 w-11 rounded-full bg-white p-0 shadow-sm hover:bg-[#f2f2f7]"
+                className="h-10 w-10 rounded-full bg-white p-0 shadow-sm hover:bg-[#f2f2f7]"
                 aria-label="Search"
               >
                 <SendHorizontal
@@ -128,8 +126,8 @@ export function WorkbenchLanding({
 
         <section className="mx-auto mt-8 w-full max-w-4xl space-y-4">
           <div className="space-y-1 text-center">
-            <TypographyH2 className="border-b-0 pb-0 text-[24px] text-[#262162] md:text-[32px]">
-              Ranked Results, Verified Sources
+            <TypographyH2 className="border-b-0 pb-0 text-[22px] text-[#262162] md:text-[30px]">
+              Ranked results, verified sources.
             </TypographyH2>
             <p className="text-sm text-[#8f8faa]">
             </p>
@@ -195,11 +193,8 @@ export function WorkbenchLanding({
                             target="_blank"
                             rel="noreferrer"
                           >
-                            View discussion
+                            View discussion on Reddit →
                           </a>
-                          <div className="mt-1 text-xs text-[#8f8faa]">
-                            {result.comments} comments • {result.upvotes} upvotes
-                          </div>
                         </TableCell>
                         <TableCell className="px-4 py-4 text-right font-semibold text-[#f59e0b]">
                           {Number.isFinite(result.relevance)
@@ -215,39 +210,38 @@ export function WorkbenchLanding({
           )}
         </section>
 
-        <section>
-          <Card className="mx-auto max-w-3xl border-[#e7e5e4] bg-white shadow-sm transition-shadow duration-300 hover:shadow-md">
+        <section onMouseEnter={handleHowItWorksImpression}>
+          <div className="mb-4 text-center">
+            <TypographyH2 className="border-b-0 pb-0 text-[22px] text-[#262162] md:text-[26px]">
+              How it works
+            </TypographyH2>
+          </div>
+          <Card className="mx-auto max-w-2xl border-[#e7e5e4] bg-white shadow-sm">
             <CardContent className="p-0">
-              <Accordion
-                type="single"
-                collapsible
-                value={howItWorksValue}
-                onValueChange={handleHowItWorksToggle}
-                className="px-4 md:px-6"
-              >
-                <AccordionItem value="how-it-works" className="border-none">
-                  <AccordionTrigger className="justify-center text-center text-[24px] font-semibold text-[#262162] hover:no-underline md:text-[32px]">
-                    How it works
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4 pt-2 text-sm text-[#5b5b73] md:pb-6">
-                    <ul className="mx-auto max-w-2xl space-y-3 text-left">
-                      {[
-                        "Submit a DIY or home improvement question.",
-                        "Agents scan and verify Reddit discussions.",
-                        "Threads are ranked for relevance and clarity.",
-                        "Review sources with confidence.",
-                      ].map((item) => (
-                        <li key={item} className="flex items-start gap-3">
-                          <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#e9e9f4] text-[#262162]">
-                            <Check className="h-3.5 w-3.5" />
-                          </span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+              <div className="divide-y divide-[#e7e5e4]">
+                {[
+                  "Collect source threads",
+                  "Screen for relevance",
+                  "Extract key evidence",
+                  "Rank results with citations",
+                ].map((item, index) => (
+                  <div
+                    key={item}
+                    className="relative flex items-center gap-3 px-4 py-4 pl-12 text-sm text-[#5b5b73] md:px-6 md:pl-14"
+                  >
+                    <span
+                      className="absolute left-[18px] flex h-2.5 w-2.5 items-center justify-center rounded-full border border-[#262162] md:left-[22px]"
+                      style={{
+                        backgroundColor:
+                          index === 0
+                            ? "transparent"
+                            : `rgba(38, 33, 98, ${0.2 + index * 0.2})`,
+                      }}
+                    />
+                    <span className="flex-1">{item}</span>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </section>
