@@ -1,4 +1,5 @@
 """Preview harness for the evidence pipeline."""
+# Run: python scripts/run_evidence_preview.py --config config/evidence_preview.yaml --mode fixture_only
 
 from __future__ import annotations
 
@@ -11,6 +12,11 @@ from typing import Any
 
 import typer
 import yaml
+
+if __package__ is None or __package__ == "":
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
 
 from agent.clients.openai_client import get_openai_client
 from agent.planner.core import create_search_plan
@@ -100,8 +106,27 @@ def _preview_counts(request: EvidenceRequest) -> dict[str, int]:
     }
 
 
-@app.command()
-def run(
+def _summarize_fetch_result(fetch_result: Any) -> list[dict[str, Any]]:
+    posts = getattr(fetch_result, "posts", []) or []
+    summary: list[dict[str, Any]] = []
+    for post in posts:
+        summary.append(
+            {
+                "post_id": post.id,
+                "title": post.title,
+                "subreddit": post.subreddit,
+                "url": post.url,
+                "relevance_score": post.relevance_score,
+                "post_karma": post.post_karma,
+                "matched_keywords": list(post.matched_keywords or []),
+                "num_comments": len(post.comments or []),
+            }
+        )
+    return summary
+
+
+@app.callback(invoke_without_command=True)
+def main(
     config: Path = typer.Option(..., "--config", help="Path to YAML config."),
     query: str | None = typer.Option(None, "--query", help="Optional single query override."),
     mode: str = typer.Option(
@@ -214,6 +239,8 @@ def run(
             curator_cfg,
             prompt_version,
         )
+        record["evidence_request"] = request.model_dump(mode="json")
+        record["fetch_result_summary"] = _summarize_fetch_result(fetch_result)
         top_payload = request.post_payloads[0] if request.post_payloads else None
         second_payload = request.post_payloads[1] if len(request.post_payloads) > 1 else None
         logger.info(

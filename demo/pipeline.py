@@ -25,7 +25,7 @@ from services.summarizer.selector import build_summarize_request
 from services.selector.config import SelectorConfig
 
 logger = get_logger(__name__)
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "summarizer_smoke_test.yaml"
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "evidence_preview.yaml"
 
 
 def _load_config(path: Path) -> dict[str, Any]:

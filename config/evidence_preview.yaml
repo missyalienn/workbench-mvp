@@ -1,4 +1,4 @@
-# Summarizer smoke test configuration.
+# Evidence preview configuration.
 # Note: LLM calls are disabled unless allow_llm: true.
 
 queries:
@@ -23,4 +23,4 @@ max_highlights: 6
 max_cautions: 5
 
 # Optional: if omitted, a timestamped filename is generated.
-# output_filename: "summarizer_preview_example.json"
+# output_filename: "evidence_preview_example.json"

@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.types import PositiveInt
 
 class PostPayload(BaseModel):
-    """Compact representation of a Reddit post passed to the curator."""
+    """Compact representation of a Reddit post passed to the LLM."""
 
     model_config = ConfigDict(extra="forbid")
 

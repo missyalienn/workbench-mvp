@@ -4,6 +4,7 @@ Usage:
     python scripts/run_demo_pipeline.py
     python scripts/run_demo_pipeline.py "my floor squeaks when I walk on it"
 """
+# Run: python scripts/run_demo_pipeline.py "my floor squeaks when I walk on it"
 
 from __future__ import annotations
 
