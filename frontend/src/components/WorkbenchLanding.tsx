@@ -38,6 +38,7 @@ export interface WorkbenchResult {
 interface WorkbenchLandingProps {
   results: WorkbenchResult[];
   isLoading: boolean;
+  errorMessage?: string | null;
   onSearch: (query: string) => void;
   onHowItWorksClick: () => void;
 }
@@ -45,6 +46,7 @@ interface WorkbenchLandingProps {
 export function WorkbenchLanding({
   results,
   isLoading,
+  errorMessage,
   onSearch,
   onHowItWorksClick,
 }: WorkbenchLandingProps) {
@@ -124,6 +126,27 @@ export function WorkbenchLanding({
           </form>
         </section>
 
+        {isLoading ? (
+          <section className="mx-auto w-full max-w-4xl">
+            <Card className="border-[#e7e5e4] bg-white shadow-sm">
+              <CardContent className="flex flex-col items-center justify-center gap-3 py-8 text-sm text-[#5b5b73]">
+                <Spinner className="h-8 w-8 text-[#262162]" />
+                <span>Searching, filtering, and ranking results...</span>
+              </CardContent>
+            </Card>
+          </section>
+        ) : null}
+
+        {errorMessage ? (
+          <section className="mx-auto w-full max-w-4xl">
+            <Card className="border-[#fed7aa] bg-[#fff7ed] shadow-sm">
+              <CardContent className="py-4 text-sm text-[#b45309]">
+                {errorMessage}
+              </CardContent>
+            </Card>
+          </section>
+        ) : null}
+
         <section className="mx-auto mt-8 w-full max-w-4xl space-y-4">
           <div className="space-y-1 text-center">
             <TypographyH2 className="border-b-0 pb-0 text-[22px] text-[#262162] md:text-[30px]">
@@ -133,81 +156,72 @@ export function WorkbenchLanding({
             </p>
           </div>
 
-          {isLoading ? (
-            <Card className="border-[#e7e5e4] bg-white shadow-sm">
-              <CardContent className="flex flex-col items-center justify-center gap-4 py-10 text-sm text-[#78716c]">
-                <Spinner className="h-10 w-10 text-[#262162]" />
-                <span>Searching, filtering, and ranking results...</span>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-[#e7e5e4] bg-white">
-              <Table>
-                <TableHeader className="bg-[#f2f2f7]">
+          <div className="overflow-hidden rounded-lg border border-[#e7e5e4] bg-white">
+            <Table>
+              <TableHeader className="bg-[#f2f2f7]">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
+                    Rank
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
+                    Subreddit
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
+                    Discussion
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-right text-xs uppercase text-[#262162]">
+                    Relevance
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {results.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
-                      Rank
-                    </TableHead>
-                    <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
-                      Subreddit
-                    </TableHead>
-                    <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
-                      Discussion
-                    </TableHead>
-                    <TableHead className="px-4 py-3 text-right text-xs uppercase text-[#262162]">
-                      Relevance
-                    </TableHead>
+                    <TableCell
+                      colSpan={4}
+                      className="px-4 py-8 text-center text-[#a8a29e]"
+                    >
+                      No results yet.
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {results.length === 0 ? (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell
-                        colSpan={4}
-                        className="px-4 py-8 text-center text-[#a8a29e]"
-                      >
-                        No results yet.
+                ) : (
+                  results.map((result) => (
+                    <TableRow
+                      key={`${result.rank}-${result.link}`}
+                      className="border-[#e7e5e4] hover:bg-[#fafaf9]"
+                    >
+                      <TableCell className="px-4 py-4 font-semibold text-[#262162]">
+                        {result.rank}
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <span className="inline-flex rounded-full bg-[#eef0fb] px-2 py-1 text-xs text-[#262162]">
+                          r/{result.subreddit}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <div className="text-base font-semibold text-[#1e1b4b]">
+                          {result.title}
+                        </div>
+                        <a
+                          href={result.link}
+                          className="text-sm text-[#2f3aa1] hover:text-[#262162] hover:underline"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View discussion on Reddit →
+                        </a>
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-right font-semibold text-[#f59e0b]">
+                        {Number.isFinite(result.relevance)
+                          ? result.relevance
+                          : "—"}
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    results.map((result) => (
-                      <TableRow
-                        key={`${result.rank}-${result.link}`}
-                        className="border-[#e7e5e4] hover:bg-[#fafaf9]"
-                      >
-                        <TableCell className="px-4 py-4 font-semibold text-[#262162]">
-                          {result.rank}
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          <span className="inline-flex rounded-full bg-[#eef0fb] px-2 py-1 text-xs text-[#262162]">
-                            r/{result.subreddit}
-                          </span>
-                        </TableCell>
-                        <TableCell className="px-4 py-4">
-                          <div className="text-base font-semibold text-[#1e1b4b]">
-                            {result.title}
-                          </div>
-                          <a
-                            href={result.link}
-                            className="text-sm text-[#2f3aa1] hover:text-[#262162] hover:underline"
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View discussion on Reddit →
-                          </a>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 text-right font-semibold text-[#f59e0b]">
-                          {Number.isFinite(result.relevance)
-                            ? result.relevance
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </section>
 
         <section onMouseEnter={handleHowItWorksImpression}>
