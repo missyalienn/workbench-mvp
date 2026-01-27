@@ -11,7 +11,18 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from copy import deepcopy
 from typing import Any
+
+
+def _trim_evidence_request(request: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not request:
+        return None
+    trimmed = deepcopy(request)
+    for payload in trimmed.get("post_payloads", []):
+        payload.pop("body_excerpt", None)
+        payload.pop("top_comment_excerpts", None)
+    return trimmed
 
 if __package__ is None or __package__ == "":
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -48,7 +59,7 @@ def _build_eval_record(record: dict[str, Any], index: int) -> dict[str, Any]:
         "query": record.get("query"),
         "input": {
             "plan": plan if plan else None,
-            "evidence_request": record.get("evidence_request"),
+            "evidence_request": _trim_evidence_request(record.get("evidence_request")),
         },
         "output": {
             "curation_result": record.get("curation_result"),

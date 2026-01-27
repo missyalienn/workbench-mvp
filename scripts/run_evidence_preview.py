@@ -1,5 +1,5 @@
 """Preview harness for the evidence pipeline."""
-# Run: python scripts/run_evidence_preview.py --config config/evidence_preview.yaml --mode fixture_only
+# Run: python scripts/run_evidence_preview.py --config config/run_config.yaml --mode fixture_only
 
 from __future__ import annotations
 
@@ -36,6 +36,10 @@ from services.selector.config import SelectorConfig
 
 logger = get_logger(__name__)
 app = typer.Typer(add_completion=False)
+
+def _sanitize_label(label: str) -> str:
+    cleaned = label.strip().replace(" ", "-")
+    return "".join(ch for ch in cleaned if ch.isalnum() or ch in {"-", "_"}).strip("-_")
 
 
 def _load_config(path: Path) -> dict[str, Any]:
@@ -129,6 +133,11 @@ def _summarize_fetch_result(fetch_result: Any) -> list[dict[str, Any]]:
 def main(
     config: Path = typer.Option(..., "--config", help="Path to YAML config."),
     query: str | None = typer.Option(None, "--query", help="Optional single query override."),
+    label: str | None = typer.Option(
+        None,
+        "--label",
+        help="Optional run label appended to the output filename (e.g., scnA).",
+    ),
     mode: str = typer.Option(
         "fixture_and_llm",
         "--mode",
@@ -136,6 +145,7 @@ def main(
     ),
 ) -> None:
     """Run the evidence preview for one or more queries."""
+    run_start = time.perf_counter()
     cfg = _load_config(config)
 
     logger.info("Loaded evidence preview config from %s", config)
@@ -169,8 +179,10 @@ def main(
     llm_error_occurred = False
     output_dir = Path("data/evidence_previews")
     output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    output_name = cfg.get("output_filename") or f"evidence_preview_{timestamp}.json"
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H%M%S")
+    output_label = _sanitize_label(label) if label else ""
+    label_suffix = f"_{output_label}" if output_label else ""
+    output_name = cfg.get("output_filename") or f"evidence_preview_{timestamp}{label_suffix}.json"
     output_path = output_dir / output_name
 
     for query_text in queries:
@@ -344,10 +356,20 @@ def main(
             "LLM errors occurred; skipping preview write for %s",
             output_path,
         )
+        logger.info(
+            "Evidence preview finished (queries=%d, total_s=%.2f).",
+            len(queries),
+            time.perf_counter() - run_start,
+        )
         return
 
     output_path.write_text(json.dumps(preview_payload, indent=2), encoding="utf-8")
     logger.info("Evidence preview saved to data/evidence_previews/%s", output_name)
+    logger.info(
+        "Evidence preview finished (queries=%d, total_s=%.2f).",
+        len(queries),
+        time.perf_counter() - run_start,
+    )
 
 
 if __name__ == "__main__":

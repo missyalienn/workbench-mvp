@@ -1,5 +1,5 @@
 """CLI wrapper for generating eval artifacts from evidence previews."""
-# Run: python scripts/run_eval_artifacts.py --config config/evidence_preview.yaml --mode fixture_only
+# Run: python scripts/run_eval_artifacts.py --config config/run_config.yaml --mode fixture_only
 
 from __future__ import annotations
 

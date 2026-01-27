@@ -46,8 +46,20 @@ class Settings(BaseSettings):
   
 
     # Agent Planner Defaults
-    ALLOWED_SUBREDDITS: list[str] = ["diy", "homeimprovement", "woodworking"]
-    DEFAULT_SUBREDDITS: list[str] = ["diy"]
+    ALLOWED_SUBREDDITS: list[str] = [
+        "diy",
+        "homeimprovement",
+        #"homemaintenance",
+        #"homeowners", 
+        "fixit",
+        "plumbing",
+        "askelectricians",
+        "howto",
+        "homedecorating",
+        "diyuk",
+        "hvacadvice"
+    ]
+    DEFAULT_SUBREDDITS: list[str] = []
     MAX_SUBREDDITS: int = 3
     MAX_SEARCH_TERMS: int = 5
 

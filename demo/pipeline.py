@@ -8,7 +8,7 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import yaml
 
@@ -21,11 +21,17 @@ from services.summarizer.llm_execution.llm_client import OpenAILLMClient
 from services.summarizer.llm_execution.prompt_builder import build_messages
 from services.summarizer.llm_execution.types import PromptMessage
 from services.summarizer.models import EvidenceRequest, EvidenceResult
+from services.summarizer.stage_summary import (
+    build_stage_diagnostics,
+    summarize_evidence_result,
+    summarize_fetch_result,
+    summarize_llm_context,
+)
 from services.summarizer.selector import build_summarize_request
 from services.selector.config import SelectorConfig
 
 logger = get_logger(__name__)
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "evidence_preview.yaml"
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "run_config.yaml"
 
 
 def _load_config(path: Path) -> dict[str, Any]:
@@ -76,13 +82,17 @@ def _summarize(
 ) -> EvidenceResult:
     return llm_client.summarize_structured(messages=messages)
 
+class _PipelineRun(NamedTuple):
+    plan: Any
+    fetch_result: Any
+    request: EvidenceRequest
+    result: EvidenceResult
 
-def run_evidence_pipeline(
+
+def _run_pipeline(
     query: str,
-    *,
-    config_path: Path | None = None,
-) -> dict[str, Any]:
-    """Run the evidence pipeline for a single query and return evidence + plan info."""
+    config_path: Path | None,
+) -> _PipelineRun:
     cfg = _load_config(config_path or DEFAULT_CONFIG_PATH)
     selector_cfg = _build_selector_config(cfg)
     curator_cfg = _build_curator_config(cfg)
@@ -92,7 +102,6 @@ def run_evidence_pipeline(
     prompt_version = cfg.get("prompt_version", "v3")
     allow_llm = cfg.get("allow_llm", False)
     if not allow_llm:
-        # TODO(mallan): define fixture-only or fallback behavior for allow_llm=false.
         raise RuntimeError("LLM calls disabled (allow_llm=false).")
 
     logger.info(
@@ -117,6 +126,24 @@ def run_evidence_pipeline(
     client = get_openai_client(environment=openai_env)
     llm_client = OpenAILLMClient(client=client, model=model)
     result = _summarize(llm_client, messages)
+
+    return _PipelineRun(
+        plan=plan,
+        fetch_result=fetch_result,
+        request=request,
+        result=result,
+    )
+
+ 
+
+
+def run_evidence_pipeline(
+    query: str,
+    *,
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    """Run the evidence pipeline for a single query and return evidence + plan info."""
+    plan, _, _, result = _run_pipeline(query, config_path)
     return {
         "search_plan": {
             "search_terms": plan.search_terms,
@@ -124,4 +151,33 @@ def run_evidence_pipeline(
             "notes": plan.notes,
         },
         "evidence_result": result,
+    }
+
+
+def pipeline_stage_summary(
+    query: str,
+    *,
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    """Run the evidence pipeline and return stage-boundary summaries only."""
+    plan, fetch_result, request, result = _run_pipeline(query, config_path)
+    fetch_result_summary = summarize_fetch_result(fetch_result)
+    llm_context_summary = summarize_llm_context(request)
+    evidence_result_summary = summarize_evidence_result(result)
+    diagnostics = build_stage_diagnostics(
+        fetch_result_summary,
+        llm_context_summary,
+        evidence_result_summary,
+    )
+
+    return {
+        "search_plan": {
+            "search_terms": plan.search_terms,
+            "subreddits": plan.subreddits,
+            "notes": plan.notes,
+        },
+        "fetch_result_summary": fetch_result_summary,
+        "llm_context_summary": llm_context_summary,
+        "evidence_result_summary": evidence_result_summary,
+        "diagnostics": diagnostics,
     }
