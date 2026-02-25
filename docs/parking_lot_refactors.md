@@ -1,2 +1,0 @@
-- (2025-05-??) — Add wrapper command for planner+fetcher flow — Avoid typing long commands; consider Makefile alias or shell script that runs save_plan + fetcher with defaults.
-- (2025-05-??) — Split retryable fetch errors into subclasses — Currently all timeout/network/non-429 failures become `RetryableFetchError`; if we add per-error backoff or sharper logging later, break them into specific subclasses (timeout, server error, network) under a shared base.
