@@ -1,4 +1,14 @@
-"""Manual scoring harness for RedditFetcher keyword weights."""
+"""
+Manual scoring harness aligned with RedditFetcher keyword scoring.
+
+Runs Reddit search using the same transport defaults as the fetcher, applies the
+fetcher validation gate (`passes_post_validation`), then evaluates keyword
+relevance to report how many posts pass the threshold. Logs summary counts per
+(subreddit, search term) pair and across all pairs.
+
+Run:
+    python3 scripts/manual_score_test.py --subreddit diy --search-term "leaky faucet fix" --limit 15
+"""
 
 from __future__ import annotations
 
@@ -8,24 +18,25 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from time import sleep
-from typing import Any
 
 if __package__ is None or __package__ == "":
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
+from agent.planner.core import create_search_plan
 from config.logging_config import configure_logging, get_logger
 from services.reddit_client import RedditClient
+from services.fetch.reddit_validation import passes_post_validation
 from services.fetch.scoring import evaluate_post_relevance
 from services.fetch.utils.text_utils import clean_text
 
-DEFAULT_SUBREDDITS = ["diy"]
-DEFAULT_TERMS = ["leaky faucet fix"]
-SHOWCASE_SCORE_THRESHOLD = 2000
-
+DEFAULT_QUERIES = [
+    "how to caulk bathtub",
+    "how to repair holes in drywall",
+    "how to mount a TV safely",
+]
 logger = get_logger(__name__)
-API_BASE_URL = "https://oauth.reddit.com"
 
 
 def main() -> None:
@@ -35,67 +46,91 @@ def main() -> None:
 
     log_path = attach_file_logger()
     logger.info(
-        "Manual scoring run | subreddits=%s | search_terms=%s | limit=%d | pause=%.1fs",
-        args.subreddits,
-        args.search_terms,
+        "Manual scoring run | queries=%s | limit=%d | pause=%.1fs",
+        args.queries,
         args.limit,
         args.pause,
     )
     logger.info("Log file: %s", log_path)
 
     client = RedditClient()
-    session = client.session()
+    total_fetched = 0
+    total_considered = 0
+    total_passed = 0
+    pair_summaries: list[str] = []
 
-    total = 0
-    accepted = 0
-
-    for subreddit in args.subreddits:
-        for term in args.search_terms:
-            logger.info("Fetching posts for r/%s | search_term='%s'", subreddit, term)
-            posts = fetch_posts(session, subreddit, term, args.limit)
-            if not posts:
-                logger.warning(
-                    "No posts returned for r/%s | search_term='%s'", subreddit, term
+    for query in args.queries:
+        logger.info('Query: "%s"', query)
+        plan = create_search_plan(query)
+        logger.info(
+            "Plan: subreddits=%s | search_terms=%s",
+            plan.subreddits,
+            plan.search_terms,
+        )
+        for subreddit in plan.subreddits:
+            for term in plan.search_terms:
+                pair_fetched = 0
+                pair_considered = 0
+                pair_passed = 0
+                logger.info(
+                    "Fetching posts for r/%s | search_term='%s'",
+                    subreddit,
+                    term,
                 )
-                continue
+                for post in client.paginate_search(
+                    subreddit=subreddit,
+                    query=term,
+                    limit=args.limit,
+                ):
+                    post_id = post.get("id")
+                    if not post_id:
+                        continue
+                    pair_fetched += 1
+                    total_fetched += 1
+                    if not passes_post_validation(post):
+                        continue
+                    pair_considered += 1
+                    total_considered += 1
+                    post_karma = post.get("score", 0)
+                    title = clean_text(post.get("title", ""))
+                    body = clean_text(post.get("selftext", ""))
+                    relevance, positives, negatives, passed = evaluate_post_relevance(
+                        post_id=post_id,
+                        title=title,
+                        body=body,
+                    )
 
-            for post in posts:
-                total += 1
-                post_karma = post.get("score", 0)
-                if post_karma is not None and post_karma > SHOWCASE_SCORE_THRESHOLD:
+                    snippet = title[:80]
                     logger.info(
-                        "[REJECTED] r/%s | post_karma=%s | reason=high_score_threshold | title='%s'",
+                        "[%s] r/%s | post_karma=%s | relevance=%.2f | title='%s' | positives=%s | negatives=%s",
+                        "ACCEPTED" if passed else "REJECTED",
                         subreddit,
                         post_karma,
-                        post.get("title", "")[:80],
+                        relevance,
+                        snippet,
+                        positives,
+                        negatives,
                     )
-                    continue
-                title = clean_text(post.get("title", ""))
-                body = clean_text(post.get("selftext", ""))
-                relevance, positives, negatives, passed = evaluate_post_relevance(
-                    post_id=post.get("id", "unknown"),
-                    title=title,
-                    body=body,
+
+                    if passed:
+                        pair_passed += 1
+                        total_passed += 1
+
+                sleep(args.pause)
+                pair_summaries.append(
+                    "Summary (pair): passed "
+                    f"{pair_passed}/{pair_considered} posts for r/{subreddit} "
+                    f"| search_term='{term}' | query='{query}'"
                 )
 
-                snippet = title[:80]
-                logger.info(
-                    "[%s] r/%s | post_karma=%s | relevance=%.2f | title='%s' | positives=%s | negatives=%s",
-                    "ACCEPTED" if passed else "REJECTED",
-                    subreddit,
-                    post_karma,
-                    relevance,
-                    snippet,
-                    positives,
-                    negatives,
-                )
-
-                if passed:
-                    accepted += 1
-
-            sleep(args.pause)
-
-    logger.info("Summary: accepted %d/%d posts", accepted, total)
+    for summary in pair_summaries:
+        logger.info(summary)
+    logger.info("Summary (all): passed %d/%d posts", total_passed, total_considered)
+    logger.info(
+        "Summary (all): considered %d/%d fetched posts",
+        total_considered,
+        total_fetched,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -103,18 +138,11 @@ def parse_args() -> argparse.Namespace:
         description="Fetch Reddit posts and run keyword relevance scoring.",
     )
     parser.add_argument(
-        "--subreddit",
-        dest="subreddits",
+        "--query",
+        dest="queries",
         action="append",
         default=None,
-        help="Subreddit to query (repeat for multiple). Default: diy",
-    )
-    parser.add_argument(
-        "--search-term",
-        dest="search_terms",
-        action="append",
-        default=None,
-        help="Search term (repeat for multiple). Default: 'leaky faucet fix'",
+        help="Query to generate a planner SearchPlan (repeat for multiple).",
     )
     parser.add_argument(
         "--limit",
@@ -129,41 +157,8 @@ def parse_args() -> argparse.Namespace:
         help="Seconds to pause between subreddit queries. Default: 1.0",
     )
     args = parser.parse_args()
-    args.subreddits = args.subreddits or DEFAULT_SUBREDDITS
-    args.search_terms = args.search_terms or DEFAULT_TERMS
+    args.queries = args.queries or DEFAULT_QUERIES
     return args
-
-
-def fetch_posts(
-    session: Any, subreddit: str, term: str, limit: int
-) -> list[dict[str, Any]]:
-    params = {
-        "q": term,
-        "limit": limit,
-        "sort": "relevance",
-        "restrict_sr": 1,
-        "include_over_18": 1,
-    }
-    response = session.get(
-        f"{API_BASE_URL}/r/{subreddit}/search",
-        params=params,
-        timeout=10,
-    )
-    try:
-        response.raise_for_status()
-    except Exception as exc:  # pragma: no cover - manual script
-        logger.error(
-            "Reddit request failed | r/%s | search_term='%s' | status=%s | error=%s",
-            subreddit,
-            term,
-            response.status_code,
-            exc,
-        )
-        return []
-
-    data = response.json()
-    children = data.get("data", {}).get("children", [])
-    return [child.get("data", {}) for child in children if child.get("data")]
 
 
 def attach_file_logger() -> Path:
