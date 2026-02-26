@@ -67,6 +67,28 @@ class Settings(BaseSettings):
     FETCHER_MAX_WORKERS: int = 3
     FETCHER_ENABLE_CONCURRENCY: bool = True
 
+    # Semantic Ranking Configuration
+    USE_SEMANTIC_RANKING: bool = Field(
+        False,
+        validation_alias="USE_SEMANTIC_RANKING",
+        description="Enable semantic ranking (embeddings + cosine similarity)",
+    )
+    EMBEDDING_MODEL: str = Field(
+        "text-embedding-3-small",
+        validation_alias="EMBEDDING_MODEL",
+        description="Embedding model name",
+    )
+    EMBEDDING_CACHE_PATH: str = Field(
+        "data/embedding_cache.sqlite3",
+        validation_alias="EMBEDDING_CACHE_PATH",
+        description="SQLite path for embedding cache",
+    )
+    MAX_EMBED_TEXT_CHARS: int = Field(
+        4000,
+        validation_alias="MAX_EMBED_TEXT_CHARS",
+        description="Max characters for embedding input text",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

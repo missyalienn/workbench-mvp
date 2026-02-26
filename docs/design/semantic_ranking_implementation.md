@@ -1,7 +1,5 @@
 # Semantic Ranking v1 — Implementation Plan
 
-Mentor voice, step-by-step, no code, smallest safe slice first.
-
 ## Step 1 — Config Flags
 
 - Add config flags and defaults (`USE_SEMANTIC_RANKING`, `EMBEDDING_MODEL`, `EMBEDDING_CACHE_PATH`, `MAX_EMBED_TEXT_CHARS`) without changing behavior.
@@ -89,3 +87,4 @@ Mentor voice, step-by-step, no code, smallest safe slice first.
 - Scoring happens after validation and duplicate filtering to avoid wasted embeddings.
 - Failure paths keep posts (score = 0.0) rather than dropping them.
 - Two-phase refactor keeps the post set identical when the flag is off.
+
