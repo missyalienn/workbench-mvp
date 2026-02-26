@@ -9,10 +9,13 @@ Usage:
     from services.embedding.client import OpenAIEmbeddingClient
 
     client = get_openai_client()
+    from services.embedding.stores.sqlite_store import SQLiteVectorStore
+
+    store = SQLiteVectorStore("data/embedding_cache.sqlite3")
     embedder = OpenAIEmbeddingClient(
         client=client,
         model="text-embedding-3-small",
-        cache_path="data/embedding_cache.sqlite3",
+        store=store,
     )
     vector, dims = embedder.get_or_create_embedding("some text")
 """
@@ -26,7 +29,7 @@ from openai import OpenAI
 from config.logging_config import get_logger
 from services.fetch.utils.text_utils import clean_text
 from services.http.retry_policy import RetryableFetchError, fetch_with_retry
-from services.embedding.cache import get_embedding, set_embedding
+from services.embedding.store import VectorStore
 
 logger = get_logger(__name__)
 
@@ -65,10 +68,10 @@ def _fetch_embedding(*, client: OpenAI, model: str, text: str) -> list[float]:
 class OpenAIEmbeddingClient:
     """Embedding client with cache lookup and write-back."""
 
-    def __init__(self, *, client: OpenAI, model: str, cache_path: str) -> None:
+    def __init__(self, *, client: OpenAI, model: str, store: VectorStore) -> None:
         self._client = client
         self._model = model
-        self._cache_path = cache_path
+        self._store = store
 
     def get_or_create_embedding(self, text: str) -> tuple[list[float], int]:
         normalized = normalize_text(text)
@@ -76,7 +79,7 @@ class OpenAIEmbeddingClient:
             raise EmbeddingError("Embedding text is empty after normalization")
 
         digest = content_digest(normalized)
-        cached = get_embedding(self._cache_path, digest, self._model)
+        cached = self._store.get_embedding(digest, self._model)
         if cached is not None:
             return cached
 
@@ -90,7 +93,7 @@ class OpenAIEmbeddingClient:
             raise EmbeddingError("Failed to fetch embedding") from exc
 
         dims = len(vector)
-        set_embedding(self._cache_path, digest, self._model, dims, vector)
+        self._store.set_embedding(digest, self._model, dims, vector)
         return vector, dims
 
 
