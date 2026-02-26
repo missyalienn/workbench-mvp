@@ -52,7 +52,7 @@ Selection and downstream LLM logic depend only on `relevance_score`, not how it 
 5. Remove keyword logic from main ranking path.
 6. Allow instant rollback via config flag.
 7. Degrade to karma-only sorting if embeddings fail.
-8. Use persistent SQLite cache for embeddings.
+8. Use a vector store abstraction for embeddings (SQLite implementation in v1).
 9. Isolate scoring into a second internal phase (fetch/build first, score second).
 
 Non-goals (v1):
@@ -155,7 +155,20 @@ No hard system failure.
 
 ## 7. SQLite Embedding Cache
 
-### 7.1 Table Schema
+## 7. Vector Store Abstraction
+
+Semantic ranking depends on a small vector-store interface, not a specific backend.
+
+### 7.1 Interface (v1)
+
+* `get_embedding(digest, model) -> (vector, dims) | None`
+* `set_embedding(digest, model, dims, vector) -> None`
+
+### 7.2 SQLite Implementation (v1)
+
+SQLite is the initial backend, but it is not the contract.
+
+#### Table Schema
 
 Single table:
 
@@ -165,14 +178,14 @@ Single table:
 * embedding (BLOB)
 * PRIMARY KEY (content_digest, model)
 
-### 7.2 Storage Format
+#### Storage Format
 
 * Embeddings stored as BLOB (float32)
 * No JSON storage
 * No TTL
 * No eviction
 
-### 7.3 Concurrency
+#### Concurrency
 
 * Per-operation connection
 * WAL mode enabled
@@ -186,7 +199,8 @@ New settings:
 
 * `USE_SEMANTIC_RANKING` (bool)
 * `EMBEDDING_MODEL`
-* `EMBEDDING_CACHE_PATH`
+* `VECTOR_STORE_TYPE` (e.g., `sqlite`)
+* `EMBEDDING_CACHE_PATH` (SQLite only)
 * `MAX_EMBED_TEXT_CHARS`
 
 Rollback strategy:
@@ -228,7 +242,7 @@ Minimum validation:
 * Remove keyword code entirely
 * Rename `relevance_score` → `semantic_score`
 * Add score_source field
-* Vector DB instead of SQLite
+* Add non-SQLite vector store (Pinecone or similar)
 
 
 ## Sanity Check
@@ -242,4 +256,3 @@ This design:
 * Keeps selector untouched
 * Keeps DTO untouched
 * Adds isolated semantic layer
-

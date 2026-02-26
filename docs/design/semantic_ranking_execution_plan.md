@@ -20,7 +20,7 @@
 * No external contract changes.
 * Must be rollback-safe via feature flag.
 * Must support concurrency (3 workers).
-* Must use SQLite cache (stdlib only).
+* Must use a vector store abstraction (SQLite implementation in v1, stdlib only).
 
 ---
 
@@ -114,6 +114,8 @@ New directory:
 Files:
 
 * `cache.py`
+* `store.py` (interface)
+* `stores/sqlite_store.py`
 * `client.py`
 * `similarity.py`
 
@@ -121,7 +123,7 @@ These are additive. They do not modify existing modules beyond being called.
 
 ## 4. New Components (Additive Only)
 
-### 4.1 Embedding Cache (SQLite)
+### 4.1 Vector Store (SQLite Implementation)
 
 Single table:
 
@@ -148,10 +150,10 @@ Responsibilities:
 
 * Normalize text
 * Hash digest
-* Check cache
+* Check vector store
 * Call OpenAI API if needed
-* Store embedding in cache
-* Return numpy vector
+* Store embedding in vector store
+* Return vector
 
 Failure behavior:
 

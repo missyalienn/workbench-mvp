@@ -7,12 +7,12 @@
 
 ## Step 2 — Embedding Cache
 
-- Create the embedding cache module with the SQLite schema and connection settings (WAL, busy_timeout, per-operation connections).
+- Create a vector store interface plus a SQLite implementation with schema and connection settings (WAL, busy_timeout, per-operation connections).
 - Don't wire it yet; just make sure it can read/write idempotently.
 
 ## Step 3 — Embedding Client
 
-- Create the embedding client module that normalizes text, computes a digest, checks cache, calls the embeddings API on a miss, and stores results.
+- Create the embedding client module that normalizes text, computes a digest, checks the vector store, calls the embeddings API on a miss, and stores results.
 - Wrap the API call with Tenacity and return a vector; keep the client local (no globals).
 
 ## Step 4 — Similarity Helper
@@ -93,3 +93,9 @@
 - SQLite cache is local by default (`data/embedding_cache.sqlite3`) and works for single-host demos.
 - For a demo deployed off your machine, run in Docker with a mounted volume so the cache persists.
 - Defer Dockerization until local semantic ranking is stable and validated.
+
+## Pinecone Adapter Note
+
+- Keep SQLite as the default vector store for now.
+- Add a Pinecone store adapter later as a single new store class plus config switch (no scoring changes).
+- Use keyring-based client init to stay consistent with existing OpenAI/Pinecone auth patterns.
