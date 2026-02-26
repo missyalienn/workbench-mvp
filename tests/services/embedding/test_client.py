@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from services.embedding.client import OpenAIEmbeddingClient, content_digest, normalize_text
+from services.embedding.stores.sqlite_store import SQLiteVectorStore
 
 
 def test_get_or_create_embedding_reads_from_cache(tmp_path) -> None:
@@ -24,15 +25,13 @@ def test_get_or_create_embedding_reads_from_cache(tmp_path) -> None:
         def _create(self, *, model: str, input: str):
             raise AssertionError("Embedding API should not be called when cache hits")
 
-    from services.embedding.cache import init_cache, set_embedding
-
-    init_cache(db_path)
-    set_embedding(db_path, digest, model, len(vector), vector)
+    store = SQLiteVectorStore(db_path)
+    store.set_embedding(digest, model, len(vector), vector)
 
     embedder = OpenAIEmbeddingClient(
         client=DummyClient(),
         model=model,
-        cache_path=db_path,
+        store=store,
     )
 
     result_vector, dims = embedder.get_or_create_embedding("abc123")
