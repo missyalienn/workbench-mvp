@@ -88,3 +88,8 @@
 - Failure paths keep posts (score = 0.0) rather than dropping them.
 - Two-phase refactor keeps the post set identical when the flag is off.
 
+## Deployment Note
+
+- SQLite cache is local by default (`data/embedding_cache.sqlite3`) and works for single-host demos.
+- For a demo deployed off your machine, run in Docker with a mounted volume so the cache persists.
+- Defer Dockerization until local semantic ranking is stable and validated.
