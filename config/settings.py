@@ -88,6 +88,11 @@ class Settings(BaseSettings):
         validation_alias="MAX_EMBED_TEXT_CHARS",
         description="Max characters for embedding input text",
     )
+    VECTOR_STORE_TYPE: str = Field(
+        "sqlite",
+        validation_alias="VECTOR_STORE_TYPE",
+        description="Vector store backend type (e.g., sqlite, pinecone)",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
