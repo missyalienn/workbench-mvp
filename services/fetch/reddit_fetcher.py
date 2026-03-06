@@ -1,4 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from typing import Any
 
 from agent.planner.model import SearchPlan
 from config.logging_config import get_logger
@@ -10,12 +12,49 @@ from .comment_pipeline import filter_comments
 from .content_filters import has_seen_post, is_post_too_short
 from .reddit_builders import build_comment_models, build_post_model
 from .reddit_validation import passes_post_validation
-from .schemas import FetchResult, Post
+from .schemas import Comment, FetchResult, Post
 from .scoring import evaluate_post_relevance
 from .utils.datetime_utils import utc_now
 from .utils.text_utils import clean_text
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class PostCandidate:
+    """Post data assembled before scoring."""
+
+    raw_post: dict[str, Any]
+    cleaned_title: str
+    cleaned_body: str
+    comments: list[Comment]
+    fetched_at: float
+
+
+def _score_post_candidates(candidates: list[PostCandidate]) -> list[Post]:
+    scored: list[Post] = []
+    for candidate in candidates:
+        post_id = candidate.raw_post.get("id", "")
+        score, positives, _, passed = evaluate_post_relevance(
+            post_id=post_id,
+            title=candidate.cleaned_title,
+            body=candidate.cleaned_body,
+        )
+        if not passed:
+            logger.info("Rejecting post %s: below_threshold", post_id)
+            continue
+
+        post_model = build_post_model(
+            raw_post=candidate.raw_post,
+            cleaned_title=candidate.cleaned_title,
+            cleaned_body=candidate.cleaned_body,
+            relevance_score=score,
+            matched_keywords=positives,
+            comments=candidate.comments,
+            fetched_at=candidate.fetched_at,
+        )
+        scored.append(post_model)
+    return scored
 
 
 def _fetch_posts_for_pair(
@@ -27,7 +66,7 @@ def _fetch_posts_for_pair(
     client: RedditClient | None = None,
 ) -> list[Post]:
     """Fetch and filter posts for a single (subreddit, term) pair."""
-    accepted: list[Post] = []
+    candidates: list[PostCandidate] = []
     local_seen_post_ids: set[str] = set()
     reddit_client = client or RedditClient()
 
@@ -51,15 +90,6 @@ def _fetch_posts_for_pair(
 
             title = clean_text(raw_post.get("title", ""))
             body = clean_text(raw_post.get("selftext", ""))
-
-            score, positives, _, passed = evaluate_post_relevance(
-                post_id=post_id,
-                title=title,
-                body=body,
-            )
-            if not passed:
-                logger.info("Rejecting post %s: below_threshold", post_id)
-                continue
 
             if is_post_too_short(body):
                 logger.info("Rejecting post %s: too_short", post_id)
@@ -96,16 +126,15 @@ def _fetch_posts_for_pair(
                 logger.info("Rejecting post %s: no_comments", post_id)
                 continue
 
-            post_model = build_post_model(
-                raw_post=raw_post,
-                cleaned_title=title,
-                cleaned_body=body,
-                relevance_score=score,
-                matched_keywords=positives,
-                comments=comment_models,
-                fetched_at=fetched_at,
+            candidates.append(
+                PostCandidate(
+                    raw_post=raw_post,
+                    cleaned_title=title,
+                    cleaned_body=body,
+                    comments=comment_models,
+                    fetched_at=fetched_at,
+                )
             )
-            accepted.append(post_model)
     except RateLimitError as exc:
         logger.warning(
             "429: Too many requests while searching (subreddit=%s, term=%s): %s",
@@ -120,7 +149,7 @@ def _fetch_posts_for_pair(
             term,
             exc,
         )
-    return accepted
+    return _score_post_candidates(candidates)
 
 
 def run_reddit_fetcher(
