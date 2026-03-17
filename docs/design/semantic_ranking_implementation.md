@@ -90,6 +90,23 @@
 - Failure paths keep posts (score = 0.0) rather than dropping them.
 - Two-phase refactor keeps the post set identical when the flag is off.
 
+## Test Coverage Checklist
+
+- Ranking unit tests cover: query embedding, per-post embedding failure, cosine scoring order.
+- Similarity helper tests cover: identical vectors, orthogonal vectors, zero vectors, length mismatch.
+- Fetcher integration tests cover: semantic flag on routing, query embedding failure fallback, keyword rollback path.
+- DTO stability tests cover: `Post` shape unchanged and `matched_keywords` empty in semantic mode.
+
+## TODOs for Additional Coverage
+
+- TODO: test truncation boundaries (query and post text).
+- TODO: test empty query and empty post text handling.
+- TODO: test cache hit vs cache miss behavior at the ranking level.
+- TODO: test zero-norm vectors flowing through ranking (score = 0.0).
+- TODO: test fetcher integration for semantic flag routing.
+- TODO: test query embedding failure fallback in fetcher.
+- TODO: test keyword rollback path remains unchanged.
+- TODO: test end-to-end semantic vs keyword ordering on a known fixture.
 ## Deployment Note
 
 - SQLite cache is local by default (`data/embedding_cache.sqlite3`) and works for single-host demos.
