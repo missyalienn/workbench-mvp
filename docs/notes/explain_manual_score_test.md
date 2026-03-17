@@ -18,7 +18,7 @@
 
 Example run:
 ```bash
-python3 scripts/manual_score_test.py --query "how to caulk bathtub."
+python3 scripts/smoke/manual_score_test.py --query "how to caulk bathtub."
 ```
   
 
