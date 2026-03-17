@@ -1,10 +1,10 @@
 """Export evidence preview JSON into JSONL eval records.
 
 Usage:
-    python scripts/export_eval_jsonl.py data/evidence_previews/evidence_preview_20260116_020157.json
-    python scripts/export_eval_jsonl.py data/evidence_previews/evidence_preview_20260116_020157.json data/evidence_previews/evidence_preview_20260116_020157.jsonl
+    python scripts/runs/export_eval_jsonl.py data/evidence_previews/evidence_preview_20260116_020157.json
+    python scripts/runs/export_eval_jsonl.py data/evidence_previews/evidence_preview_20260116_020157.json data/evidence_previews/evidence_preview_20260116_020157.jsonl
 """
-# Run: python scripts/export_eval_jsonl.py data/evidence_previews/evidence_preview_20260116_020157.json
+# Run: python scripts/runs/export_eval_jsonl.py data/evidence_previews/evidence_preview_20260116_020157.json
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def _write_jsonl(records: list[dict[str, Any]], output_path: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: python scripts/export_eval_jsonl.py INPUT_JSON [OUTPUT_JSONL]")
+        raise SystemExit("Usage: python scripts/runs/export_eval_jsonl.py INPUT_JSON [OUTPUT_JSONL]")
     input_path = Path(sys.argv[1])
     output_path = Path(sys.argv[2]) if len(sys.argv) > 2 else input_path.with_suffix(".jsonl")
 

@@ -1,10 +1,10 @@
 """Run the demo evidence pipeline with a single query.
 
 Usage:
-    python scripts/run_demo_pipeline.py
-    python scripts/run_demo_pipeline.py "my floor squeaks when I walk on it"
+    python scripts/runs/run_demo_pipeline.py
+    python scripts/runs/run_demo_pipeline.py "my floor squeaks when I walk on it"
 """
-# Run: python scripts/run_demo_pipeline.py "my floor squeaks when I walk on it"
+# Run: python scripts/runs/run_demo_pipeline.py "my floor squeaks when I walk on it"
 
 from __future__ import annotations
 

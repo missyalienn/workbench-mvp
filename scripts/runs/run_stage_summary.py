@@ -1,10 +1,10 @@
 """Generate middle-range pipeline stage summary artifacts.
 
 Usage:
-    python scripts/run_stage_summary.py --config config/run_config.yaml
-    python scripts/run_stage_summary.py --config config/run_config.yaml --label scnA
+    python scripts/runs/run_stage_summary.py --config config/run_config.yaml
+    python scripts/runs/run_stage_summary.py --config config/run_config.yaml --label scnA
 """
-# Run: python scripts/run_stage_summary.py --config config/run_config.yaml
+# Run: python scripts/runs/run_stage_summary.py --config config/run_config.yaml
 
 from __future__ import annotations
 

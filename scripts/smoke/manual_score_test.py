@@ -7,7 +7,7 @@ relevance to report how many posts pass the threshold. Logs summary counts per
 (subreddit, search term) pair and across all pairs.
 
 Run:
-    python3 scripts/manual_score_test.py --subreddit diy --search-term "leaky faucet fix" --limit 15
+    python3 scripts/smoke/manual_score_test.py --subreddit diy --search-term "leaky faucet fix" --limit 15
 """
 
 from __future__ import annotations

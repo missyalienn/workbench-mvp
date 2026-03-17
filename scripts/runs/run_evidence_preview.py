@@ -1,5 +1,5 @@
 """Preview harness for the evidence pipeline."""
-# Run: python scripts/run_evidence_preview.py --config config/run_config.yaml --mode fixture_only
+# Run: python scripts/runs/run_evidence_preview.py --config config/run_config.yaml --mode fixture_only
 
 from __future__ import annotations
 
