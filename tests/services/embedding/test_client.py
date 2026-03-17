@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from services.embedding.client import OpenAIEmbeddingClient, content_digest, normalize_text
+from services.embedding.client import EmbeddingClient, content_digest, normalize_text
 from services.embedding.stores.sqlite_store import SQLiteVectorStore
 
 
@@ -28,7 +28,7 @@ def test_get_or_create_embedding_reads_from_cache(tmp_path) -> None:
     store = SQLiteVectorStore(db_path)
     store.set_embedding(digest, model, len(vector), vector)
 
-    embedder = OpenAIEmbeddingClient(
+    embedder = EmbeddingClient(
         client=DummyClient(),
         model=model,
         store=store,

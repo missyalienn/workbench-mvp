@@ -6,13 +6,13 @@ Summary:
 
 Usage:
     from agent.clients.openai_client import get_openai_client
-    from services.embedding.client import OpenAIEmbeddingClient
+    from services.embedding.client import EmbeddingClient
 
     client = get_openai_client()
     from services.embedding.stores.sqlite_store import SQLiteVectorStore
 
     store = SQLiteVectorStore("data/embedding_cache.sqlite3")
-    embedder = OpenAIEmbeddingClient(
+    embedder = EmbeddingClient(
         client=client,
         model="text-embedding-3-small",
         store=store,
@@ -38,8 +38,8 @@ class EmbeddingError(RuntimeError):
     """Raised when an embedding cannot be retrieved."""
 
 
-class OpenAIRetryableError(RetryableFetchError):
-    """Retryable transport error specific to OpenAI embedding calls."""
+class EmbeddingRetryableError(RetryableFetchError):
+    """Retryable transport error for embedding provider calls."""
 
 
 def normalize_text(text: str) -> str:
@@ -62,10 +62,10 @@ def _fetch_embedding(*, client: OpenAI, model: str, text: str) -> list[float]:
         embedding = response.data[0].embedding
         return list(embedding)
     except Exception as exc:  # Transport failures aren't deterministic in tests.
-        raise OpenAIRetryableError("Embedding request failed") from exc
+        raise EmbeddingRetryableError("Embedding request failed") from exc
 
 
-class OpenAIEmbeddingClient:
+class EmbeddingClient:
     """Embedding client with cache lookup and write-back."""
 
     def __init__(self, *, client: OpenAI, model: str, store: VectorStore) -> None:
@@ -99,7 +99,8 @@ class OpenAIEmbeddingClient:
 
 __all__ = [
     "EmbeddingError",
-    "OpenAIEmbeddingClient",
+    "EmbeddingClient",
+    "EmbeddingRetryableError",
     "content_digest",
     "normalize_text",
 ]
