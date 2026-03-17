@@ -95,7 +95,7 @@ Selector remains unchanged.
 
 ### 5.1 Query Embedding
 
-* Compute embedding for `plan.query` once per fetch run.
+* Compute embedding for `plan.query` once per fetch run inside a ranking module.
 * Use cache if available.
 * If embedding fails and no cached value exists:
 

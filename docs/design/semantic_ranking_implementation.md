@@ -30,8 +30,10 @@
 
 ## Step 6 — Query Embedding
 
-- Add query embedding in Phase B: compute it once per fetch run, use cache if present, and on failure default the query vector to "missing" so posts can be scored as 0.0.
-- This keeps the system running even if embeddings fail.
+- Add query embedding in a new ranking module (`services/embedding/ranking.py`) so fetcher stays retrieval-only.
+- Introduce a small dataclass to represent ranking inputs (query + candidates).
+- Compute the query embedding once per run inside the ranking module, using the vector store for caching.
+- On failure, return a clear error (dev policy = fail fast) rather than falling back to keyword scoring.
 
 ## Step 7 — Post Embedding and Scoring
 
@@ -99,3 +101,21 @@
 - Keep SQLite as the default vector store for now.
 - Add a Pinecone store adapter later as a single new store class plus config switch (no scoring changes).
 - Use keyring-based client init to stay consistent with existing OpenAI/Pinecone auth patterns.
+
+
+What changed in Reddit Fetcher (reddit_fetcher.py): 
+
+What changed in `services/fetch/reddit_fetcher.py`
+- `_fetch_posts_for_pair` no longer scores posts inline.  
+- It now builds `PostCandidate` objects (raw post + cleaned text + comments + fetched_at).  
+- A new `_score_post_candidates` function computes `relevance_score` and builds final `Post` models afterward.
+
+What did **not** change
+- **Top‑N selection**: still happens in the selector (`services/selector`), not in the fetcher. No change.  
+- **Comment fetching**: still happens inside `_fetch_posts_for_pair`, before any scoring. No change.  
+- **Post/comment object creation**:  
+  - Comments are still built via `build_comment_models` right after `filter_comments` (same place).  
+  - Posts are now built in `_score_post_candidates`, not inline, but this is after comments are built and still within the fetch phase.  
+- **FetchResult**: still constructed in `run_reddit_fetcher` at the end, same fields, same shape.
+
+So behavior and output are the same; only the scoring step moved into a second internal phase.
