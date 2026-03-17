@@ -69,7 +69,7 @@ class Settings(BaseSettings):
 
     # Semantic Ranking Configuration
     USE_SEMANTIC_RANKING: bool = Field(
-        False,
+        True,
         validation_alias="USE_SEMANTIC_RANKING",
         description="Enable semantic ranking (embeddings + cosine similarity)",
     )
