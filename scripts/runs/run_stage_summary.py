@@ -19,7 +19,7 @@ import typer
 import yaml
 
 if __package__ is None or __package__ == "":
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -54,7 +54,10 @@ def _resolve_queries(cfg: dict[str, Any], query_override: str | None) -> list[st
     queries = cfg.get("queries")
     if not queries:
         raise typer.BadParameter("Config must include non-empty 'queries'.")
-    return list(queries)
+    resolved = [query for query in queries if isinstance(query, str) and query.strip()]
+    if not resolved:
+        raise typer.BadParameter("Config must include non-empty 'queries'.")
+    return resolved
 
 
 @app.callback(invoke_without_command=True)
