@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING
 
 from config.settings import settings
 from services.embedding.client import EmbeddingClient, EmbeddingError
+from services.embedding.similarity import cosine_similarity
+from services.fetch.reddit_builders import build_post_model
+from services.fetch.schemas import Post
 
 if TYPE_CHECKING:
     from services.fetch.reddit_fetcher import PostCandidate
@@ -49,3 +52,55 @@ def embed_query(
     if not query.strip():
         raise EmbeddingError("Query text is empty after truncation")
     return embedder.get_or_create_embedding(query)
+
+
+def rank_candidates(
+    ranking_input: RankingInput,
+    query_embedding: tuple[list[float], int],
+    embedder: EmbeddingClient,
+) -> list[Post]:
+    """Return scored Post models from candidates."""
+    query_vector, _ = query_embedding
+    scored: list[Post] = []
+    for candidate in ranking_input.candidates:
+        post_text = _truncate_text(
+            f"{candidate.cleaned_title}\n\n{candidate.cleaned_body}",
+            settings.MAX_EMBED_TEXT_CHARS,
+        )
+        try:
+            post_vector, _ = embedder.get_or_create_embedding(post_text)
+            score = cosine_similarity(query_vector, post_vector)
+        except EmbeddingError:
+            score = 0.0
+
+        scored.append(
+            build_post_model(
+                # URL, karma, and subreddit are derived from raw_post in build_post_model.
+                raw_post=candidate.raw_post,
+                cleaned_title=candidate.cleaned_title,
+                cleaned_body=candidate.cleaned_body,
+                relevance_score=score,
+                matched_keywords=[],
+                comments=candidate.comments,
+                fetched_at=candidate.fetched_at,
+            )
+        )
+    return scored
+
+
+def zero_score_posts(candidates: list["PostCandidate"]) -> list[Post]:
+    scored: list[Post] = []
+    for candidate in candidates:
+        scored.append(
+            build_post_model(
+                # URL, karma, and subreddit are derived from raw_post in build_post_model.
+                raw_post=candidate.raw_post,
+                cleaned_title=candidate.cleaned_title,
+                cleaned_body=candidate.cleaned_body,
+                relevance_score=0.0,
+                matched_keywords=[],
+                comments=candidate.comments,
+                fetched_at=candidate.fetched_at,
+            )
+        )
+    return scored
