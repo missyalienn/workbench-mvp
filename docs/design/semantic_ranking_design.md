@@ -126,6 +126,13 @@ Unchanged:
 * Break ties by `post_karma`
 * Truncate to `cfg.max_posts`
 
+## Ranking Output
+
+Ranking returns full `Post` DTOs built in `services/embedding/ranking.py` using `build_post_model`.
+The ranking module only sets `relevance_score` and `matched_keywords`; all other fields
+(URL, subreddit, karma, comments, fetched_at) are derived from the `PostCandidate` data
+and `raw_post`. This keeps DTO shape stable while scoring remains a metadata decision.
+
 
 ## 6. Failure Modes
 
@@ -152,6 +159,12 @@ Pipeline continues.
   * Still attempt API calls
 
 No hard system failure.
+
+### 6.4 Query Embedding Failure
+
+* If the query embedding cannot be retrieved, all posts default to `relevance_score = 0.0`.
+* Selector falls back to karma-only ordering.
+* A warning is logged when this fallback happens.
 
 ## 7. SQLite Embedding Cache
 

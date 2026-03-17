@@ -2,9 +2,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
 
+from agent.clients.openai_client import get_openai_client
 from agent.planner.model import SearchPlan
 from config.logging_config import get_logger
 from config.settings import settings
+from services.embedding.client import EmbeddingClient, EmbeddingError
+from services.embedding.ranking import RankingInput, embed_query, rank_candidates, zero_score_posts
+from services.embedding.store_factory import get_vector_store
 from services.http.retry_policy import RateLimitError, RetryableFetchError
 from services.reddit_client import RedditClient
 
@@ -64,7 +68,7 @@ def _fetch_posts_for_pair(
     post_limit: int,
     fetched_at: float,
     client: RedditClient | None = None,
-) -> list[Post]:
+) -> list[PostCandidate]:
     """Fetch and filter posts for a single (subreddit, term) pair."""
     candidates: list[PostCandidate] = []
     local_seen_post_ids: set[str] = set()
@@ -149,7 +153,7 @@ def _fetch_posts_for_pair(
             term,
             exc,
         )
-    return _score_post_candidates(candidates)
+    return candidates
 
 
 def run_reddit_fetcher(
@@ -163,6 +167,7 @@ def run_reddit_fetcher(
     """
     fetched_at = utc_now()
     accepted_posts: list[Post] = []
+    candidate_posts: list[PostCandidate] = []
     seen_post_ids: set[str] = set()
     plan_query = plan.query
 
@@ -172,25 +177,25 @@ def run_reddit_fetcher(
         for term in plan.search_terms
     ]
 
-    def _merge_posts(posts: list[Post]) -> None:
-        for post in posts:
-            post_id = getattr(post, "id", None)
+    def _merge_candidates(candidates: list[PostCandidate]) -> None:
+        for candidate in candidates:
+            post_id = candidate.raw_post.get("id")
             if not post_id or post_id in seen_post_ids:
                 continue
             seen_post_ids.add(post_id)
-            accepted_posts.append(post)
+            candidate_posts.append(candidate)
 
     if not settings.FETCHER_ENABLE_CONCURRENCY:
         client = RedditClient()
         for subreddit, term in tasks:
-            posts = _fetch_posts_for_pair(
+            candidates = _fetch_posts_for_pair(
                 client=client,
                 subreddit=subreddit,
                 term=term,
                 post_limit=post_limit,
                 fetched_at=fetched_at,
             )
-            _merge_posts(posts)
+            _merge_candidates(candidates)
     else:
         max_workers = max(1, settings.FETCHER_MAX_WORKERS)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -207,7 +212,7 @@ def run_reddit_fetcher(
             for future in as_completed(future_map):
                 subreddit, term = future_map[future]
                 try:
-                    posts = future.result()
+                    candidates = future.result()
                 except Exception as exc:
                     logger.warning(
                         "Concurrent fetch failed (subreddit=%s, term=%s): %s",
@@ -216,7 +221,29 @@ def run_reddit_fetcher(
                         exc,
                     )
                     continue
-                _merge_posts(posts)
+                _merge_candidates(candidates)
+
+    if settings.USE_SEMANTIC_RANKING:
+        try:
+            client = get_openai_client()
+            store = get_vector_store()
+            embedder = EmbeddingClient(
+                client=client,
+                model=settings.EMBEDDING_MODEL,
+                store=store,
+            )
+            ranking_input = RankingInput(query=plan_query, candidates=candidate_posts)
+            query_embedding = embed_query(ranking_input, embedder)
+            accepted_posts = rank_candidates(ranking_input, query_embedding, embedder)
+            logger.info('Semantic Ranking: Ranked %d posts', len(accepted_posts))
+        except EmbeddingError as exc:
+            logger.warning(
+                "Semantic ranking failed; fall back to karma-only ordering (reason=%s)",
+                exc,
+            )
+            accepted_posts = zero_score_posts(candidate_posts)
+    else:
+        accepted_posts = _score_post_candidates(candidate_posts)
 
     return FetchResult(
         query=plan_query,
