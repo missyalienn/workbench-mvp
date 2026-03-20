@@ -12,7 +12,7 @@ from typing import List
 import typer
 
 if __package__ is None or __package__ == "":
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -26,14 +26,14 @@ app = typer.Typer(add_completion=False)
 DEFAULT_QUERIES: List[str] = [
     "how to caulk bathtub",
     "how to repair holes in drywall",
-    "how to install laminate flooring in an apartment",
-    "how to touch up chipped wall paint",
-    "how to mount a TV safely",
-    "how to remove scratches from wood table",
+    "how to bleed a radiator",
     "how to hang floating wall shelves",
-    "how to build a raised garden bed",
-    "how to fix a broken light fixture",
-    "how to paint a room properly",
+    "how to remove scratches from wood table",
+    #"how to touch up chipped wall paint",
+    #"how to mount a TV safely",
+    #"how to build a raised garden bed",
+    #"how to fix a broken light fixture",
+    #"how to paint a room properly",
 ]
 
 PREVIEW_DIR = Path("data/fetch_previews")

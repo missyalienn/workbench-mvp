@@ -1,0 +1,138 @@
+# Semantic Ranking v1 — Implementation Plan
+
+## Step 1 — Config Flags
+
+- Add config flags and defaults (`USE_SEMANTIC_RANKING`, `EMBEDDING_MODEL`, `EMBEDDING_CACHE_PATH`, `MAX_EMBED_TEXT_CHARS`) without changing behavior.
+- This gives you a safe toggle and keeps the current pipeline stable.
+
+## Step 2 — Embedding Cache
+
+- Create a vector store interface plus a SQLite implementation with schema and connection settings (WAL, busy_timeout, per-operation connections).
+- Don't wire it yet; just make sure it can read/write idempotently.
+
+## Step 3 — Embedding Client
+
+- Create the embedding client module that normalizes text, computes a digest, checks the vector store, calls the embeddings API on a miss, and stores results.
+- Wrap the API call with Tenacity and return a vector; keep the client local (no globals).
+
+## Step 4 — Similarity Helper
+
+- Implement the cosine similarity helper with vector normalization and zero-norm safety.
+- This stays isolated so scoring logic is clean and testable.
+
+## Step 5 — Two-Phase Fetcher
+
+- Refactor the fetcher into two internal phases without changing outputs.
+- Phase A fetches posts, validates, fetches comments, and builds `Post` objects.
+- Phase B scores the built posts.
+- With the flag off, Phase B should still use keyword scoring so behavior is unchanged.
+- Place the phase split in `services/fetch/reddit_fetcher.py` by separating scoring from `_fetch_posts_for_pair` (Phase A) and applying Phase B after posts are built, before returning from `run_reddit_fetcher`.
+
+## Step 6 — Query Embedding
+
+- Add query embedding in a new ranking module (`services/embedding/ranking.py`) so fetcher stays retrieval-only.
+- Introduce a small dataclass to represent ranking inputs (query + candidates).
+- Compute the query embedding once per run inside the ranking module, using the vector store for caching.
+- On failure, return a clear error (dev policy = fail fast) rather than falling back to keyword scoring.
+
+## Step 7 — Post Embedding and Scoring
+
+- Add post embedding + semantic scoring in Phase B.
+- For each built post, embed `title + "\n\n" + body`, truncate to `MAX_EMBED_TEXT_CHARS`, and compute cosine similarity with the query vector.
+- Assign that to `relevance_score`.
+- If embedding fails, set `relevance_score = 0.0`.
+
+## Step 8 — Feature Flag Wiring
+
+- Wire the feature flag: if `USE_SEMANTIC_RANKING` is true, use semantic scoring and set `matched_keywords = []`.
+- If false, keep keyword scoring exactly as before.
+- This preserves rollback safety.
+- Dev policy: do not fall back to keyword scoring; semantic must run successfully to proceed in dev.
+
+## Step 9 — Focused Tests
+
+- Add focused tests: cache read/write idempotency, semantic ranking changes ordering, and embedding failure results in karma-only ordering (all scores 0.0).
+- Also add a regression test that the two-phase fetcher returns the same DTO shapes.
+
+## Step 10 — Dev Validation
+
+- Validate in dev: run once with the flag off to confirm zero regressions, then on to confirm cache creation and ranking shifts.
+- If anything breaks, flip the flag back and re-run to verify immediate rollback.
+
+## Baseline Evaluation Note
+
+- Use existing runs in `data/pipeline_stage_summaries/` and `data/evidence_previews/` as the before baseline, then compare top-N ordering after semantic ranking is enabled.
+
+## Risk Checklist
+
+- Separation of concerns: fetching/building posts and scoring are in separate phases.
+- No global clients: embedding client is created within the scoring path.
+- Idempotent embeddings: same text + model yields the same cached vector.
+- Failure handling: embedding failures result in `relevance_score = 0.0`, not pipeline failure.
+- Rollback safety: feature flag restores keyword scoring without DTO or selector changes.
+- Concurrency safety: SQLite cache uses per-operation connections, WAL, and busy_timeout.
+- Dev gating: if semantic scoring is unavailable and no cached embeddings exist, fail fast rather than using keyword scoring.
+
+## Dev Validation
+
+- Do not allow keyword fallback in dev; semantic must succeed or the run fails.
+- If embeddings fail and no cache exists, fail fast instead of degrading to keyword.
+- Accept semantic as the new baseline if it is not worse than keyword on existing runs.
+- Use `data/pipeline_stage_summaries/` and `data/evidence_previews/` to compare top-N quality before and after.
+- Use `docs/notes/concurrency_results.md` as the fetch-latency baseline; expect first run slower and subsequent runs faster after cache warm-up.
+
+## Pre-Flight Checklist
+
+- Cache key normalization is consistent so digests match across runs.
+- Embedding model and `dims` are validated to avoid mismatched vectors.
+- Text truncation is applied deterministically before embedding.
+- Scoring happens after validation and duplicate filtering to avoid wasted embeddings.
+- Failure paths keep posts (score = 0.0) rather than dropping them.
+- Two-phase refactor keeps the post set identical when the flag is off.
+
+## Test Coverage Checklist
+
+- Ranking unit tests cover: query embedding, per-post embedding failure, cosine scoring order.
+- Similarity helper tests cover: identical vectors, orthogonal vectors, zero vectors, length mismatch.
+- Fetcher integration tests cover: semantic flag on routing, query embedding failure fallback, keyword rollback path.
+- DTO stability tests cover: `Post` shape unchanged and `matched_keywords` empty in semantic mode.
+
+## TODOs for Additional Coverage
+
+- TODO: test truncation boundaries (query and post text).
+- TODO: test empty query and empty post text handling.
+- TODO: test cache hit vs cache miss behavior at the ranking level.
+- TODO: test zero-norm vectors flowing through ranking (score = 0.0).
+- TODO: test fetcher integration for semantic flag routing.
+- TODO: test query embedding failure fallback in fetcher.
+- TODO: test keyword rollback path remains unchanged.
+- TODO: test end-to-end semantic vs keyword ordering on a known fixture.
+## Deployment Note
+
+- SQLite cache is local by default (`data/embedding_cache.sqlite3`) and works for single-host demos.
+- For a demo deployed off your machine, run in Docker with a mounted volume so the cache persists.
+- Defer Dockerization until local semantic ranking is stable and validated.
+
+## Pinecone Adapter Note
+
+- Keep SQLite as the default vector store for now.
+- Add a Pinecone store adapter later as a single new store class plus config switch (no scoring changes).
+- Use keyring-based client init to stay consistent with existing OpenAI/Pinecone auth patterns.
+
+
+What changed in Reddit Fetcher (reddit_fetcher.py): 
+
+What changed in `services/fetch/reddit_fetcher.py`
+- `_fetch_posts_for_pair` no longer scores posts inline.  
+- It now builds `PostCandidate` objects (raw post + cleaned text + comments + fetched_at).  
+- A new `_score_post_candidates` function computes `relevance_score` and builds final `Post` models afterward.
+
+What did **not** change
+- **Top‑N selection**: still happens in the selector (`services/selector`), not in the fetcher. No change.  
+- **Comment fetching**: still happens inside `_fetch_posts_for_pair`, before any scoring. No change.  
+- **Post/comment object creation**:  
+  - Comments are still built via `build_comment_models` right after `filter_comments` (same place).  
+  - Posts are now built in `_score_post_candidates`, not inline, but this is after comments are built and still within the fetch phase.  
+- **FetchResult**: still constructed in `run_reddit_fetcher` at the end, same fields, same shape.
+
+So behavior and output are the same; only the scoring step moved into a second internal phase.

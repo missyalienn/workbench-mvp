@@ -2,16 +2,17 @@
 # Note: LLM calls are disabled unless allow_llm: true.
 
 queries:
-  - "How to fix a leaky tap"
-  - "How to unblock a toilet"
-  - "How to fix a hole in the wall"
-  - "How long do you leave plaster to dry before painting"
-  - "What does \"LB\" mean on my smoke alarm"
-  - "How to unblock a drain"
-  - "How to change kitchen cupboard doors"
-  - "Can you paint kitchen cabinets"
-  - "Can you lay new laminate flooring over old laminate"
-  - "How to bleed a radiator properly"
+  - "how to caulk a bathtub"
+  - "how to repair holes in drywall"
+  - "how to bleed a radiator"
+  - "how to hang floating wall shelves"
+  - "how to remove scratches from wood table"
+
+# Optional extra queries (uncomment to enable):
+# - "how to fix a broken light fixture"
+# - "how to touch up chipped wall paint"
+# - "how to mount a tv safely"
+# - "how to paint a room properly"
 
 prompt_version: "v3"
 

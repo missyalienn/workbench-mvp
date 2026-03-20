@@ -212,7 +212,7 @@ The consumer will need to:
 
 ### Smoke Test Script
 
-**Script file:** `scripts/planner_smoke_test.py`
+**Script file:** `scripts/smoke/planner_smoke_test.py`
 
 **Purpose:** Manual validation script for developers to test Planner logic with real LLM calls. Lives in `scripts/` alongside other developer utilities (data refresh tools, manual validation scripts, etc.) - not part of automated test suite.
 

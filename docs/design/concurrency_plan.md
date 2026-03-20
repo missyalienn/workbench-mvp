@@ -12,7 +12,7 @@ Goal: add a small, optional thread pool to run multiple `(subreddit, term)` fetc
    - These live in `config/settings.py` and let us toggle the pool on/off without code edits.
 
 2) **Timing log in the preview script**  
-   - In `scripts/run_fetch_preview.py`, record `start = time.perf_counter()` before `run_reddit_fetcher(...)` and `end = time.perf_counter()` after.  
+   - In `scripts/runs/run_fetch_preview.py`, record `start = time.perf_counter()` before `run_reddit_fetcher(...)` and `end = time.perf_counter()` after.  
    - Log/print the elapsed seconds and the count of subreddits × terms. This gives a clean before/after number without relying on `/usr/bin/time`.
 
 3) **Helper for one task**  
@@ -30,7 +30,6 @@ Goal: add a small, optional thread pool to run multiple `(subreddit, term)` fetc
    - Because it’s driven by config, turning concurrency off is just flipping the toggle. No risky rollback needed.
 
 6) **Measure and decide**  
-   - Run `scripts/run_fetch_preview.py` with concurrency off to capture baseline (timing log).  
+   - Run `scripts/runs/run_fetch_preview.py` with concurrency off to capture baseline (timing log).  
    - Turn concurrency on (small worker count) and rerun the same queries; compare elapsed time.  
    - If gains are minimal, set the toggle back to False and you’re back to serial.
-
