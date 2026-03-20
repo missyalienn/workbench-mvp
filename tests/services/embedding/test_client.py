@@ -22,7 +22,7 @@ def test_get_or_create_embedding_reads_from_cache(tmp_path) -> None:
         def __init__(self) -> None:
             self.embeddings = SimpleNamespace(create=self._create)
 
-        def _create(self, *, model: str, input: str):
+        def _create(self, *, model: str, input: str) -> None:
             raise AssertionError("Embedding API should not be called when cache hits")
 
     store = SQLiteVectorStore(db_path)

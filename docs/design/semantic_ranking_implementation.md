@@ -33,7 +33,7 @@
 - Add query embedding in a new ranking module (`services/embedding/ranking.py`) so fetcher stays retrieval-only.
 - Introduce a small dataclass to represent ranking inputs (query + candidates).
 - Compute the query embedding once per run inside the ranking module, using the vector store for caching.
-- On failure, return a clear error (dev policy = fail fast) rather than falling back to keyword scoring.
+- On failure, raise `EmbeddingError` and let the fetcher fall back to zero-score posts.
 
 ## Step 7 — Post Embedding and Scoring
 
@@ -47,7 +47,6 @@
 - Wire the feature flag: if `USE_SEMANTIC_RANKING` is true, use semantic scoring and set `matched_keywords = []`.
 - If false, keep keyword scoring exactly as before.
 - This preserves rollback safety.
-- Dev policy: do not fall back to keyword scoring; semantic must run successfully to proceed in dev.
 
 ## Step 9 — Focused Tests
 
@@ -75,8 +74,8 @@
 
 ## Dev Validation
 
-- Do not allow keyword fallback in dev; semantic must succeed or the run fails.
-- If embeddings fail and no cache exists, fail fast instead of degrading to keyword.
+- Semantic mode falls back to zero-score posts on embedding errors.
+- Keyword scoring is used only when `USE_SEMANTIC_RANKING` is false.
 - Accept semantic as the new baseline if it is not worse than keyword on existing runs.
 - Use `data/pipeline_stage_summaries/` and `data/evidence_previews/` to compare top-N quality before and after.
 - Use `docs/notes/concurrency_results.md` as the fetch-latency baseline; expect first run slower and subsequent runs faster after cache warm-up.

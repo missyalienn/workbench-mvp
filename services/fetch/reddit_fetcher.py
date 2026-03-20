@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+import time
 from typing import Any
 
 from agent.clients.openai_client import get_openai_client
@@ -161,6 +162,7 @@ def run_reddit_fetcher(
     *,
     post_limit: int,
     environment: str = "dev",
+    run_id: str | None = None,
 ) -> FetchResult:
     """
     Orchestrate the Reddit fetch pipeline for a planner-produced SearchPlan.
@@ -224,6 +226,14 @@ def run_reddit_fetcher(
                 _merge_candidates(candidates)
 
     if settings.USE_SEMANTIC_RANKING:
+        embedding_start = time.perf_counter()
+        logger.info(
+            "stage=embedding_start event=start run_id=%s model=%s candidates=%d",
+            run_id or "unknown",
+            settings.EMBEDDING_MODEL,
+            len(candidate_posts),
+        )
+        embedding_status = "ok"
         try:
             client = get_openai_client()
             store = get_vector_store()
@@ -235,13 +245,39 @@ def run_reddit_fetcher(
             ranking_input = RankingInput(query=plan_query, candidates=candidate_posts)
             query_embedding = embed_query(ranking_input, embedder)
             accepted_posts = rank_candidates(ranking_input, query_embedding, embedder)
-            logger.info('Semantic Ranking: Ranked %d posts', len(accepted_posts))
+            logger.info(
+                "stage=embedding_ranked event=ranked run_id=%s posts=%d model=%s",
+                run_id or "unknown",
+                len(accepted_posts),
+                settings.EMBEDDING_MODEL,
+            )
         except EmbeddingError as exc:
+            embedding_status = "fallback"
             logger.warning(
-                "Semantic ranking failed; fall back to karma-only ordering (reason=%s)",
+                "stage=embedding event=error run_id=%s status=fallback error_type=%s error_message=%s reason=embedding_error",
+                run_id or "unknown",
+                type(exc).__name__,
                 exc,
             )
             accepted_posts = zero_score_posts(candidate_posts)
+        except Exception as exc:
+            embedding_status = "error"
+            logger.exception(
+                "stage=embedding event=error run_id=%s status=error error_type=%s reason=unexpected_exception",
+                run_id or "unknown",
+                type(exc).__name__,
+            )
+            accepted_posts = zero_score_posts(candidate_posts)
+        finally:
+            duration_ms = int((time.perf_counter() - embedding_start) * 1000)
+            logger.info(
+                "stage=embedding_end event=end run_id=%s status=%s duration_ms=%d candidates_scored=%d model=%s",
+                run_id or "unknown",
+                embedding_status,
+                duration_ms,
+                len(candidate_posts),
+                settings.EMBEDDING_MODEL,
+            )
     else:
         accepted_posts = _score_post_candidates(candidate_posts)
 

@@ -27,13 +27,13 @@ class DummyEmbedder:
         self._vectors = vectors
         self._fail_texts = fail_texts or set()
 
-    def get_or_create_embedding(self, text: str):
+    def get_or_create_embedding(self, text: str) -> tuple[list[float], int]:
         if text in self._fail_texts:
             raise EmbeddingError("fail")
         return self._vectors[text], len(self._vectors[text])
 
 
-def _make_candidate(post_id: str, title: str, body: str):
+def _make_candidate(post_id: str, title: str, body: str) -> DummyCandidate:
     return DummyCandidate(
         raw_post={"id": post_id, "score": 1, "subreddit": "diy", "permalink": f"/r/diy/{post_id}"},
         cleaned_title=title,

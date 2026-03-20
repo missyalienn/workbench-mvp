@@ -163,9 +163,8 @@ Failure behavior:
 
 ### 4.3 Similarity Function
 
-* Cosine similarity using numpy
-* Normalize vectors
-* Safe for zero-norm vectors
+* Cosine similarity implemented in pure Python (no numpy dependency)
+* Safe for empty inputs, length mismatch, or zero-norm vectors
 
 Returns float score.
 

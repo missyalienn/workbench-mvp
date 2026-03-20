@@ -166,6 +166,10 @@ No hard system failure.
 * Selector falls back to karma-only ordering.
 * A warning is logged when this fallback happens.
 
+Note: Current code implements this fallback by raising `EmbeddingError` from the
+ranking module and handling it in the fetcher with a zero-score fallback. There
+is no keyword fallback in semantic mode.
+
 ## 7. SQLite Embedding Cache
 
 ## 7. Vector Store Abstraction
