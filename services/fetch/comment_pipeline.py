@@ -5,13 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from config.logging_config import get_logger
+from config.settings import settings
 from .content_filters import has_seen_comment, is_comment_too_short
 from .reddit_validation import is_auto_moderator, is_deleted_or_removed
 from .reddit_builders import build_comment_payload
 from .utils.text_utils import clean_text
 
 MIN_COMMENT_KARMA = 2
-MAX_COMMENTS_PER_POST = 5
 
 logger = get_logger(__name__)
 
@@ -21,8 +21,13 @@ logger = get_logger(__name__)
 def filter_comments(
     post_id: str,
     raw_comments: list[dict[str, Any]],
+    max_comments: int = settings.FETCHER_MAX_COMMENTS_PER_POST,
 ) -> list[dict[str, Any]]:
-    """Apply comment-level validation and quality checks."""
+    """Apply comment-level validation and quality checks.
+
+    max_comments caps retained comments at fetch time. This is distinct from
+    SelectorConfig.max_comments_per_post, which limits comment excerpts in the LLM payload.
+    """
     if not raw_comments:
         return []
     filtered: list[dict[str, Any]] = []
@@ -63,7 +68,7 @@ def filter_comments(
     if not filtered:
         return []
     filtered.sort(key=lambda comment: comment["comment_karma"], reverse=True)
-    return filtered[:MAX_COMMENTS_PER_POST]
+    return filtered[:max_comments]
 
 
 __all__ = ["filter_comments"]

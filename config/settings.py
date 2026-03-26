@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     #Multithreading Configuration
     FETCHER_MAX_WORKERS: int = 3
     FETCHER_ENABLE_CONCURRENCY: bool = True
+    FETCHER_MAX_COMMENTS_PER_POST: int = Field(
+        5,
+        validation_alias="FETCHER_MAX_COMMENTS_PER_POST",
+        description=(
+            "Fetch-time cap on comments retained per post after quality filtering. "
+            "Distinct from SelectorConfig.max_comments_per_post, which further limits "
+            "how many comment excerpts are included in the LLM payload."
+        ),
+    )
 
     # Semantic Ranking Configuration
     USE_SEMANTIC_RANKING: bool = Field(

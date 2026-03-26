@@ -123,6 +123,7 @@ def _fetch_posts_for_pair(
             filtered_comments = filter_comments(
                 post_id=post_id,
                 raw_comments=raw_comments,
+                max_comments=settings.FETCHER_MAX_COMMENTS_PER_POST,
             )
 
             comment_models = build_comment_models(filtered_comments, fetched_at)
