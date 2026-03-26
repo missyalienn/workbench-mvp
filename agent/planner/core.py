@@ -13,7 +13,7 @@ from agent.clients.openai_client import get_openai_client
 logger = get_logger(__name__)
 
 
-def create_search_plan(user_query: str) -> SearchPlan:
+def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPlan:
     """
     Generate a structured search plan from a user query.
 
@@ -63,7 +63,7 @@ def create_search_plan(user_query: str) -> SearchPlan:
             # Call OpenAI API with JSON mode
             logger.debug("Calling OpenAI API for search plan generation")
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_message},

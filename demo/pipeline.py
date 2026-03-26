@@ -97,7 +97,8 @@ def _run_pipeline(
     selector_cfg = _build_selector_config(cfg)
     curator_cfg = _build_curator_config(cfg)
     openai_env = cfg.get("openai_environment", "openai-dev")
-    model = cfg.get("model", "gpt-4.1-mini")
+    planner_model = cfg.get("planner_model", "gpt-4.1-mini")
+    summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
     prompt_version = cfg.get("prompt_version", "v3")
     allow_llm = cfg.get("allow_llm", False)
@@ -105,12 +106,13 @@ def _run_pipeline(
         raise RuntimeError("LLM calls disabled (allow_llm=false).")
 
     logger.info(
-        "Evidence pipeline starting (model=%s, prompt_version=%s).",
-        model,
+        "Evidence pipeline starting (planner_model=%s, summarizer_model=%s, prompt_version=%s).",
+        planner_model,
+        summarizer_model,
         prompt_version,
     )
 
-    plan = create_search_plan(query)
+    plan = create_search_plan(query, model=planner_model)
     fetch_result = run_reddit_fetcher(
         plan=plan,
         post_limit=post_limit,
@@ -124,7 +126,7 @@ def _run_pipeline(
     messages = _build_messages(request)
 
     client = get_openai_client(environment=openai_env)
-    llm_client = OpenAILLMClient(client=client, model=model)
+    llm_client = OpenAILLMClient(client=client, model=summarizer_model)
     result = _summarize(llm_client, messages)
 
     return _PipelineRun(

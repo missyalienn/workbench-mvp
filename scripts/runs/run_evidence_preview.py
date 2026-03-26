@@ -157,7 +157,8 @@ def main(
     selector_cfg = _build_selector_config(cfg)
     curator_cfg = _build_curator_config(cfg)
     openai_env = cfg.get("openai_environment", "openai-dev")
-    model = cfg.get("model", "gpt-4.1-mini")
+    planner_model = cfg.get("planner_model", "gpt-4.1-mini")
+    summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
     prompt_version = cfg.get("prompt_version", "v3")
     allow_llm = cfg.get("allow_llm", False)
@@ -168,12 +169,12 @@ def main(
         mode = "fixture_only"
 
     client = get_openai_client(environment=openai_env)
-    llm_client = OpenAILLMClient(client=client, model=model)
+    llm_client = OpenAILLMClient(client=client, model=summarizer_model)
 
     logger.info(
-        "Curator smoke test starting (queries=%d, model=%s, prompt_version=%s).",
+        "Curator smoke test starting (queries=%d, summarizer_model=%s, prompt_version=%s).",
         len(queries),
-        model,
+        summarizer_model,
         prompt_version,
     )
     logger.debug("CLI overrides: query=%s, mode=%s", query, mode)
@@ -195,7 +196,7 @@ def main(
 
         try:
             planner_start = time.perf_counter()
-            plan = create_search_plan(query_text)
+            plan = create_search_plan(query_text, model=planner_model)
             planner_ms = int((time.perf_counter() - planner_start) * 1000)
             logger.info(
                 "SearchPlan created [plan_id=%s, query=%r, search_terms=%s, subreddits=%s, notes=%r]",
@@ -274,7 +275,7 @@ def main(
                 "plan_id": str(plan.plan_id),
                 "status": "ok_fixture_only" if mode == "fixture_only" else "ok",
                     "meta": {
-                        "model": model,
+                        "model": summarizer_model,
                         "prompt_version": prompt_version,
                         "openai_environment": openai_env,
                         "post_limit": post_limit,
@@ -299,7 +300,7 @@ def main(
             result = _summarize(llm_client, messages)
             logger.info(
                 "OpenAI Responses API returned EvidenceResult (model=%s, prompt_version=%s, query=%s)",
-                model,
+                summarizer_model,
                 prompt_version,
                 query_text,
             )
