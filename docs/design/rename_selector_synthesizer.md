@@ -126,7 +126,7 @@ Delete `services/summarizer/` after all moves confirmed.
 
 ## Stage 4 — Update external callers
 
-### `demo/pipeline.py`
+### `api/pipeline.py`
 
 **Imports (8 lines):**
 
@@ -159,7 +159,7 @@ from services.context_builder.config import ContextBuilderConfig
 
 ### `scripts/runs/run_evidence_preview.py`
 
-Identical set of 8 imports and same two helper functions — apply the same changes as `demo/pipeline.py`.
+Identical set of 8 imports and same two helper functions — apply the same changes as `api/pipeline.py`.
 
 ### `scripts/runs/run_stage_summary.py`
 

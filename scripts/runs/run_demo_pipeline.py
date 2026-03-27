@@ -17,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.logging_config import get_logger
-from demo.pipeline import run_evidence_pipeline
+from api.pipeline import run_evidence_pipeline
 
 logger = get_logger(__name__)
 DEFAULT_QUERY = "my floor squeaks when I walk on it"

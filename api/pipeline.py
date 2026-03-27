@@ -1,7 +1,7 @@
-"""Demo evidence pipeline wrapper.
+"""Evidence pipeline orchestrator.
 
 Usage:
-    from demo.pipeline import run_evidence_pipeline
+    from api.pipeline import run_evidence_pipeline
     result = run_evidence_pipeline("how to caulk bathtub")
 """
 

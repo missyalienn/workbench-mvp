@@ -108,7 +108,7 @@ export interface ApiError {
 ### API integration
 - Create `frontend/src/services/api.ts`:
   - Request payload: `{ query: string }`
-  - POST to `http://localhost:8000/api/demo`
+  - POST to `http://localhost:8000/api/run`
   - Timeout: 60s via `AbortController`
   - Handle: status `ok`/`partial`/`error`, HTTP 429 (rate limit), network failures, timeout
   - Export `submitDemoQuery(query: string)` and return `{ response?: DemoApiResponse, error?: ApiError }`
@@ -135,7 +135,7 @@ export interface ApiError {
 ---
 
 ### Test & acceptance
-- Run backend: `uvicorn demo.app:app --reload` (port 8000)
+- Run backend: `uvicorn api.app:app --reload` (port 8000)
 - Run frontend: `cd frontend && npm run dev` (port 5173)
 - Submit query "how to caulk bathtub", verify: loading stages display, results render, search plan expands, limitations show if present
 - Acceptance: full request/response cycle works, no console errors
