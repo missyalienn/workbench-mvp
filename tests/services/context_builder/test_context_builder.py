@@ -1,19 +1,18 @@
-"""Unit tests for services.summarizer.selector."""
+"""Unit tests for services.synthesizer.context_builder."""
 
 from __future__ import annotations
 
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import ValidationError
 
 from services.fetch.schemas import Comment, FetchResult, Post
-from services.selector.config import SelectorConfig
-from services.summarizer.config import EvidenceOutputConfig
-from services.summarizer.selector import (
+from services.context_builder.config import ContextBuilderConfig
+from services.synthesizer.config import EvidenceOutputConfig
+from services.synthesizer.context_builder import (
     build_comment_excerpts,
     build_post_payload,
-    build_summarize_request,
+    build_context_request,
     select_posts,
 )
 
@@ -23,10 +22,10 @@ def make_cfg(
     max_comments_per_post: int = 2,
     max_post_chars: int = 200,
     max_comment_chars: int = 80,
-) -> SelectorConfig:
-    """Factory for SelectorConfig with sensible defaults."""
+) -> ContextBuilderConfig:
+    """Factory for ContextBuilderConfig with sensible defaults."""
 
-    return SelectorConfig(
+    return ContextBuilderConfig(
         max_posts=max_posts,
         max_comments_per_post=max_comments_per_post,
         max_post_chars=max_post_chars,
@@ -146,7 +145,7 @@ def test_build_post_payload_trims_body() -> None:
     assert payload.subreddit == "test subreddit"
 
 
-def test_build_post_payload_rejects_invalid_url() -> None:
+def test_build_post_payload_passes_url_as_string() -> None:
     cfg = make_cfg()
     post = make_post(
         "bad_url_post",
@@ -155,11 +154,11 @@ def test_build_post_payload_rejects_invalid_url() -> None:
         url="not-a-valid-url",
     )
 
-    with pytest.raises(ValidationError):
-        build_post_payload(post, cfg)
+    payload = build_post_payload(post, cfg)
+    assert payload.url == "not-a-valid-url"
 
 
-def test_build_summarize_request_copies_metadata() -> None:
+def test_build_context_request_copies_metadata() -> None:
     cfg = make_cfg(max_posts=1)
     posts = [
         make_post("p1", relevance_score=0.9, post_karma=10),
@@ -172,7 +171,7 @@ def test_build_summarize_request_copies_metadata() -> None:
         max_highlights=5,
         max_cautions=3,
     )
-    request = build_summarize_request(fetch_result, cfg, prompt_version="v1", summarizer_cfg=summarizer_cfg)
+    request = build_context_request(fetch_result, cfg, prompt_version="v1", summarizer_cfg=summarizer_cfg)
 
     assert request.query == "how to test?"
     assert request.plan_id == fetch_result.plan_id

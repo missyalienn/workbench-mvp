@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from services.summarizer.models import EvidenceResult
+from services.synthesizer.models import EvidenceResult
 
 MessageRole = Literal["system", "user", "assistant"]
 

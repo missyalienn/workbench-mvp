@@ -25,7 +25,7 @@ if __package__ is None or __package__ == "":
 
 from config.logging_config import get_logger
 from demo.pipeline import _run_pipeline
-from services.summarizer.stage_summary import (
+from services.synthesizer.stage_summary import (
     build_stage_diagnostics,
     summarize_evidence_result,
     summarize_fetch_result,

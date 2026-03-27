@@ -9,7 +9,7 @@ from __future__ import annotations
 from openai import OpenAI
 from pydantic import ValidationError
 
-from services.summarizer.models import EvidenceResult
+from services.synthesizer.models import EvidenceResult
 
 from .errors import LLMStructuredOutputError, LLMTransportError
 from .types import LLMClient, PromptMessage

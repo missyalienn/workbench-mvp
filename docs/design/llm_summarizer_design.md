@@ -13,7 +13,7 @@
     - [PostPayload (Evidence Model)](#postpayload-evidence-model)
     - [SummarizeResult](#summarizeresult)
   - [Architecture and Components](#architecture-and-components)
-    - [Configuration Structure (SelectorConfig and SummarizerConfig)](#configuration-structure-selectorconfig-and-summarizerconfig)
+    - [Configuration Structure (ContextBuilderConfig and EvidenceOutputConfig)](#configuration-structure-contextbuilderconfig-and-evidenceoutputconfig)
     - [Selector](#selector)
     - [Prompt Builder](#prompt-builder)
     - [LLM Client](#llm-client)
@@ -139,12 +139,12 @@ Structured output returned by the summarizer. Enforces grounded, schema-constrai
 
 ## Architecture and Components
 
-### Configuration Structure (SelectorConfig and SummarizerConfig)
+### Configuration Structure (ContextBuilderConfig and EvidenceOutputConfig)
 
 To keep DTOs clean and preserve separation of concerns, configuration objects should live in component-specific config modules rather than in `models.py`.
 
-- `SelectorConfig` should be moved to `services/selector/config.py`.
-- `SummarizerConfig` should be created in `services/summarizer/config.py` and include:
+- `ContextBuilderConfig` lives in `services/context_builder/config.py`.
+- `EvidenceOutputConfig` lives in `services/synthesizer/config.py` and includes:
   - `summary_char_budget`
   - `max_highlights`
   - `max_cautions`

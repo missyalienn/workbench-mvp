@@ -26,7 +26,7 @@ def filter_comments(
     """Apply comment-level validation and quality checks.
 
     max_comments caps retained comments at fetch time. This is distinct from
-    SelectorConfig.max_comments_per_post, which limits comment excerpts in the LLM payload.
+    ContextBuilderConfig.max_comments_per_post, which limits comment excerpts in the LLM payload.
     """
     if not raw_comments:
         return []

@@ -16,19 +16,19 @@ from agent.clients.openai_client import get_openai_client
 from agent.planner.core import create_search_plan
 from config.logging_config import get_logger
 from services.fetch.reddit_fetcher import run_reddit_fetcher
-from services.summarizer.config import EvidenceOutputConfig
-from services.summarizer.llm_execution.llm_client import OpenAILLMClient
-from services.summarizer.llm_execution.prompt_builder import build_messages
-from services.summarizer.llm_execution.types import PromptMessage
-from services.summarizer.models import EvidenceRequest, EvidenceResult
-from services.summarizer.stage_summary import (
+from services.synthesizer.config import EvidenceOutputConfig
+from services.synthesizer.llm_execution.llm_client import OpenAILLMClient
+from services.synthesizer.llm_execution.prompt_builder import build_messages
+from services.synthesizer.llm_execution.types import PromptMessage
+from services.synthesizer.models import EvidenceRequest, EvidenceResult
+from services.synthesizer.stage_summary import (
     build_stage_diagnostics,
     summarize_evidence_result,
     summarize_fetch_result,
     summarize_llm_context,
 )
-from services.summarizer.selector import build_summarize_request
-from services.selector.config import SelectorConfig
+from services.synthesizer.context_builder import build_context_request
+from services.context_builder.config import ContextBuilderConfig
 
 logger = get_logger(__name__)
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "run_config.yaml"
@@ -41,8 +41,8 @@ def _load_config(path: Path) -> dict[str, Any]:
         return yaml.safe_load(handle)
 
 
-def _build_selector_config(cfg: dict[str, Any]) -> SelectorConfig:
-    return SelectorConfig(
+def _build_context_builder_config(cfg: dict[str, Any]) -> ContextBuilderConfig:
+    return ContextBuilderConfig(
         max_posts=cfg["max_posts"],
         max_comments_per_post=cfg["max_comments_per_post"],
         max_post_chars=cfg["max_post_chars"],
@@ -60,11 +60,11 @@ def _build_curator_config(cfg: dict[str, Any]) -> EvidenceOutputConfig:
 
 def _build_request(
     fetch_result: Any,
-    selector_cfg: SelectorConfig,
+    selector_cfg: ContextBuilderConfig,
     curator_cfg: EvidenceOutputConfig,
     prompt_version: str,
 ) -> EvidenceRequest:
-    return build_summarize_request(
+    return build_context_request(
         fetch_result,
         selector_cfg,
         prompt_version,
@@ -94,7 +94,7 @@ def _run_pipeline(
     config_path: Path | None,
 ) -> _PipelineRun:
     cfg = _load_config(config_path or DEFAULT_CONFIG_PATH)
-    selector_cfg = _build_selector_config(cfg)
+    selector_cfg = _build_context_builder_config(cfg)
     curator_cfg = _build_curator_config(cfg)
     openai_env = cfg.get("openai_environment", "openai-dev")
     planner_model = cfg.get("planner_model", "gpt-4.1-mini")

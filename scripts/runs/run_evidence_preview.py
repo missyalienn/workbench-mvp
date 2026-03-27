@@ -22,17 +22,17 @@ from agent.clients.openai_client import get_openai_client
 from agent.planner.core import create_search_plan
 from config.logging_config import get_logger
 from services.fetch.reddit_fetcher import run_reddit_fetcher
-from services.summarizer.config import EvidenceOutputConfig
-from services.summarizer.llm_execution.errors import (
+from services.synthesizer.config import EvidenceOutputConfig
+from services.synthesizer.llm_execution.errors import (
     LLMStructuredOutputError,
     LLMTransportError,
 )
-from services.summarizer.llm_execution.llm_client import OpenAILLMClient
-from services.summarizer.llm_execution.prompt_builder import build_messages
-from services.summarizer.llm_execution.types import PromptMessage
-from services.summarizer.models import EvidenceRequest, EvidenceResult
-from services.summarizer.selector import build_summarize_request
-from services.selector.config import SelectorConfig
+from services.synthesizer.llm_execution.llm_client import OpenAILLMClient
+from services.synthesizer.llm_execution.prompt_builder import build_messages
+from services.synthesizer.llm_execution.types import PromptMessage
+from services.synthesizer.models import EvidenceRequest, EvidenceResult
+from services.synthesizer.context_builder import build_context_request
+from services.context_builder.config import ContextBuilderConfig
 
 logger = get_logger(__name__)
 app = typer.Typer(add_completion=False)
@@ -61,8 +61,8 @@ def _resolve_queries(cfg: dict[str, Any], query_override: str | None) -> list[st
     return resolved
 
 
-def _build_selector_config(cfg: dict[str, Any]) -> SelectorConfig:
-    return SelectorConfig(
+def _build_context_builder_config(cfg: dict[str, Any]) -> ContextBuilderConfig:
+    return ContextBuilderConfig(
         max_posts=cfg["max_posts"],
         max_comments_per_post=cfg["max_comments_per_post"],
         max_post_chars=cfg["max_post_chars"],
@@ -80,12 +80,12 @@ def _build_curator_config(cfg: dict[str, Any]) -> EvidenceOutputConfig:
 
 def _build_request(
     fetch_result: Any,
-    selector_cfg: SelectorConfig,
+    selector_cfg: ContextBuilderConfig,
     curator_cfg: EvidenceOutputConfig,
     prompt_version: str,
 ) -> EvidenceRequest:
-    """Build the SummarizeRequest from a FetchResult."""
-    return build_summarize_request(
+    """Build the EvidenceRequest from a FetchResult."""
+    return build_context_request(
         fetch_result,
         selector_cfg,
         prompt_version,
@@ -154,7 +154,7 @@ def main(
     logger.info("Loaded evidence preview config from %s", config)
 
     queries = _resolve_queries(cfg, query)
-    selector_cfg = _build_selector_config(cfg)
+    selector_cfg = _build_context_builder_config(cfg)
     curator_cfg = _build_curator_config(cfg)
     openai_env = cfg.get("openai_environment", "openai-dev")
     planner_model = cfg.get("planner_model", "gpt-4.1-mini")

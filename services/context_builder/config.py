@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-"""Configuration models for the selector component."""
+"""Configuration models for the context_builder component."""
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.types import PositiveInt
 
 
-class SelectorConfig(BaseModel):
-    """Runtime limits controlling selector behavior."""
+class ContextBuilderConfig(BaseModel):
+    """Runtime limits controlling context builder behavior."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -17,4 +17,4 @@ class SelectorConfig(BaseModel):
     max_comment_chars: PositiveInt = Field(..., description="Max number of characters allowed in comment excerpt")
 
 
-__all__ = ["SelectorConfig"]
+__all__ = ["ContextBuilderConfig"]

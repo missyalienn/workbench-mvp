@@ -128,7 +128,7 @@ What changed in `services/fetch/reddit_fetcher.py`
 - A new `_score_post_candidates` function computes `relevance_score` and builds final `Post` models afterward.
 
 What did **not** change
-- **Top‑N selection**: still happens in the selector (`services/selector`), not in the fetcher. No change.  
+- **Top‑N selection**: still happens in the context builder (`services/context_builder`), not in the fetcher. No change.  
 - **Comment fetching**: still happens inside `_fetch_posts_for_pair`, before any scoring. No change.  
 - **Post/comment object creation**:  
   - Comments are still built via `build_comment_models` right after `filter_comments` (same place).  

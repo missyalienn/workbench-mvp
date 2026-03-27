@@ -1,7 +1,7 @@
 """Stage-boundary summary helpers for evidence pipeline artifacts.
 
 Usage:
-    from services.summarizer.stage_summary import (
+    from services.synthesizer.stage_summary import (
         summarize_fetch_result,
         summarize_llm_context,
         summarize_evidence_result,
@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from services.fetch.schemas import FetchResult
-from services.summarizer.models import EvidenceRequest, EvidenceResult
+from services.synthesizer.models import EvidenceRequest, EvidenceResult
 
 
 def summarize_fetch_result(fetch_result: FetchResult) -> list[dict[str, Any]]:
