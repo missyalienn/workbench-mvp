@@ -1,6 +1,6 @@
 import type { DemoApiResponse, ApiError } from "../types/api";
 
-const DEMO_ENDPOINT_URL = "http://localhost:8000/api/demo";
+const DEMO_ENDPOINT_URL = "http://localhost:8000/api/run";
 const TIMEOUT_MS = 60000;
 
 export async function submitDemoQuery(

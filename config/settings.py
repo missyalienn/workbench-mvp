@@ -53,7 +53,7 @@ class Settings(BaseSettings):
         #"homeowners", 
         "fixit",
         "plumbing",
-        "askelectricians",
+        "woodworking",
         "howto",
         "homedecorating",
         "diyuk",
