@@ -1,5 +1,6 @@
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from dataclasses import dataclass
 from typing import Any
 
@@ -133,6 +134,16 @@ def _fetch_posts_for_pair(
     return candidates
 
 
+def _context_wrapper(fn, /, **kwargs):
+    """Run fn(**kwargs) inside a copy of the current contextvars context.
+
+    Captures the calling thread's context at dispatch time so that
+    structlog's bound variables (e.g. plan_id) are visible inside worker threads.
+    """
+    ctx = copy_context()
+    return ctx.run(fn, **kwargs)
+
+
 def run_reddit_fetcher(
     plan: SearchPlan,
     *,
@@ -180,6 +191,7 @@ def run_reddit_fetcher(
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {
                 executor.submit(
+                    _context_wrapper,
                     _fetch_posts_for_pair,
                     subreddit=subreddit,
                     term=term,
