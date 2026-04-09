@@ -7,6 +7,7 @@ Usage:
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -14,7 +15,7 @@ import yaml
 
 from agent.clients.openai_client import get_openai_client
 from agent.planner.core import create_search_plan
-from config.logging_config import get_logger
+from config.logging_config import get_logger, plan_context_scope
 from services.fetch.reddit_fetcher import run_reddit_fetcher
 from services.synthesizer.config import EvidenceOutputConfig
 from services.synthesizer.llm_execution.llm_client import OpenAILLMClient
@@ -105,36 +106,38 @@ def _run_pipeline(
     if not allow_llm:
         raise RuntimeError("LLM calls disabled (allow_llm=false).")
 
+    t0 = time.monotonic()
     logger.info(
-        "Evidence pipeline starting (planner_model=%s, summarizer_model=%s, prompt_version=%s).",
-        planner_model,
-        summarizer_model,
-        prompt_version,
+        "pipeline.start",
+        planner_model=planner_model,
+        summarizer_model=summarizer_model,
+        prompt_version=prompt_version,
     )
 
     plan = create_search_plan(query, model=planner_model)
-    fetch_result = run_reddit_fetcher(
-        plan=plan,
-        post_limit=post_limit,
-    )
-    request = _build_request(
-        fetch_result,
-        selector_cfg,
-        curator_cfg,
-        prompt_version,
-    )
-    messages = _build_messages(request)
 
-    client = get_openai_client(environment=openai_env)
-    llm_client = OpenAILLMClient(client=client, model=summarizer_model)
-    result = _summarize(llm_client, messages)
+    with plan_context_scope(str(plan.plan_id)):
+        fetch_result = run_reddit_fetcher(plan=plan, post_limit=post_limit)
+        request = _build_request(fetch_result, selector_cfg, curator_cfg, prompt_version)
+        messages = _build_messages(request)
 
-    return _PipelineRun(
-        plan=plan,
-        fetch_result=fetch_result,
-        request=request,
-        result=result,
-    )
+        client = get_openai_client(environment=openai_env)
+        llm_client = OpenAILLMClient(client=client, model=summarizer_model)
+        result = _summarize(llm_client, messages)
+
+        logger.info(
+            "pipeline.complete",
+            elapsed_ms=int((time.monotonic() - t0) * 1000),
+            status=result.status,
+            n_threads=len(result.threads) if result.threads else 0,
+        )
+
+        return _PipelineRun(
+            plan=plan,
+            fetch_result=fetch_result,
+            request=request,
+            result=result,
+        )
 
  
 

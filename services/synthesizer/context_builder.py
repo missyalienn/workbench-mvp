@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from services.synthesizer.models import PostPayload, EvidenceRequest
 from services.context_builder.config import ContextBuilderConfig
 from services.synthesizer.config import EvidenceOutputConfig
@@ -88,8 +90,11 @@ def build_context_request(
     - Builds PostPayload objects for each selected post.
     - Attaches query/plan_id, prompt version, context builder config metadata, and synthesizer limits.
     """
+    t0 = time.monotonic()
+    logger.info("context.start", n_posts_available=len(fetch_result.posts or []))
     selected_posts = select_posts(fetch_result, cfg)
     post_payloads = [build_post_payload(post, cfg) for post in selected_posts]
+    logger.info("context.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_posts=len(post_payloads))
 
     return EvidenceRequest(
         query=fetch_result.query,

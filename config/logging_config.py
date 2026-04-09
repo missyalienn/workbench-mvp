@@ -1,89 +1,86 @@
+"""Logging configuration using structlog.
+
+Provides:
+    configure_logging() — call once at application startup
+    get_logger(name)    — returns a structlog bound logger
+    plan_context_scope(plan_id) — context manager that binds plan_id to all logs
+"""
+
 import logging
-from contextvars import ContextVar
 from contextlib import contextmanager
-from typing import Optional
+
+import structlog
+from structlog.contextvars import bind_contextvars, clear_contextvars
+
 from config.settings import settings
-import json
-from datetime import datetime
-
-_plan_id_context: ContextVar[Optional[str]] = ContextVar(
-    "plan_id_context", default=None
-)
-
-
-class PlanIdFormatter(logging.Formatter):
-    """Formatter that includes plan_id from context when available."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        plan_id = _plan_id_context.get()
-        record.plan_id = f"[plan_id={plan_id}]" if plan_id else ""
-        return super().format(record)
-
-
-class PlanIdJsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        plan_id = _plan_id_context.get()
-        output = {
-            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "plan_id": plan_id or None,
-        }
-        return json.dumps(output)
 
 
 def configure_logging() -> None:
-    """Configure project-wide logging settings."""
+    """Configure structlog and stdlib logging for the project.
+
+    Text mode (default): human-readable output via ConsoleRenderer.
+    JSON mode (LOG_FORMAT_TYPE=json): structured JSON output.
+
+    Call once at application startup (entrypoint or script top-level).
+    """
     numeric_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
 
+    # Shared processors for both stdlib and structlog paths.
+    shared_processors: list = [
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+    ]
+
+    if settings.LOG_FORMAT_TYPE == "json":
+        renderer = structlog.processors.JSONRenderer()
+    else:
+        renderer = structlog.dev.ConsoleRenderer()
+
+    # Configure structlog globally.
+    structlog.configure(
+        processors=shared_processors + [renderer],
+        wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
+        context_class=dict,
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+
+    # Configure stdlib logging so third-party libs (openai, httpx, etc.) still emit.
     logging.basicConfig(
         level=numeric_level,
-        format=settings.LOG_FORMAT,
-        datefmt=settings.LOG_DATE_FORMAT,
+        format="%(levelname)s %(name)s %(message)s",
         force=True,
     )
 
-    # Choose formatter based on LOG_FORMAT_TYPE
-    formatter: logging.Formatter
-    if settings.LOG_FORMAT_TYPE == "json":
-        formatter = PlanIdJsonFormatter()
-    else:
-        formatter = PlanIdFormatter(settings.LOG_FORMAT, settings.LOG_DATE_FORMAT)
-    for handler in logging.root.handlers:
-        handler.setFormatter(formatter)
+    # Suppress noisy third-party loggers.
+    for lib in ("openai", "httpcore", "httpx", "keyring.backend", "urllib3", "markdown_it"):
+        logging.getLogger(lib).setLevel(logging.WARNING)
 
-    # Suppress noisy third-party library logs
-    logging.getLogger("openai").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("keyring.backend").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    logging.getLogger("markdown_it").setLevel(logging.WARNING)
-    logging.getLogger("services.fetch.reddit_fetcher").setLevel(logging.INFO)
-    logging.getLogger("services.fetch.comment_pipeline").setLevel(logging.WARNING)
+    # Fetcher rejection logs are DEBUG — visible only when LOG_LEVEL=DEBUG.
+    logging.getLogger("services.fetch.comment_pipeline").setLevel(logging.DEBUG)
 
-    logger = logging.getLogger(__name__)
-    logger.info(f"Logging configured at {settings.LOG_LEVEL.upper()} level.")
+    logger = get_logger(__name__)
+    logger.info("logging.configured", level=settings.LOG_LEVEL.upper(), format=settings.LOG_FORMAT_TYPE)
 
 
-def get_logger(name: str) -> logging.Logger:
-    """Return a named logger for a given module."""
-    return logging.getLogger(name)
+def get_logger(name: str) -> structlog.BoundLogger:
+    """Return a named structlog bound logger."""
+    return structlog.get_logger(name)
 
 
 @contextmanager
 def plan_context_scope(plan_id: str):
-    """Context manager for plan_id traceability across agent steps."""
-    token = _plan_id_context.set(plan_id)
+    """Bind plan_id to all log lines emitted within this context."""
+    bind_contextvars(plan_id=plan_id)
     try:
         yield
     finally:
-        _plan_id_context.reset(token)
+        clear_contextvars()
 
 
 if __name__ == "__main__":
     configure_logging()
     log = get_logger(__name__)
-    log.info("Info message (should always appear).")
-    log.debug("Debug message (appears only if LOG_LEVEL=DEBUG).")
+    log.info("logging.test", msg="Info message (should always appear).")
+    log.debug("logging.test", msg="Debug message (appears only if LOG_LEVEL=DEBUG).")

@@ -37,24 +37,24 @@ def filter_comments(
         if not comment_id:
             continue
         if has_seen_comment(comment_id, seen_comment_ids):
-            logger.info("Rejecting comment %s: duplicate", comment_id)
+            logger.debug("fetch.comment_rejected", reason="duplicate", comment_id=comment_id)
             continue
         if is_auto_moderator(raw_comment):
-            logger.info("Rejecting comment %s: automoderator", comment_id)
+            logger.debug("fetch.comment_rejected", reason="automoderator", comment_id=comment_id)
             continue
         if is_deleted_or_removed(raw_comment.get("body")):
-            logger.info("Rejecting comment %s: deleted_or_removed", comment_id)
+            logger.debug("fetch.comment_rejected", reason="deleted_or_removed", comment_id=comment_id)
             continue
 
         score = raw_comment.get("score")
         karma = int(score) if isinstance(score, (int, float)) else 0
         if karma < MIN_COMMENT_KARMA:
-            logger.info("Rejecting comment %s: low_karma", comment_id)
+            logger.debug("fetch.comment_rejected", reason="low_karma", comment_id=comment_id)
             continue
 
         cleaned_body = clean_text(raw_comment.get("body", ""))
         if is_comment_too_short(cleaned_body):
-            logger.info("Rejecting comment %s: too_short", comment_id)
+            logger.debug("fetch.comment_rejected", reason="too_short", comment_id=comment_id)
             continue
 
         filtered.append(

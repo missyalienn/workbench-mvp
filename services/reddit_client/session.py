@@ -8,12 +8,12 @@ from typing import Optional
 import os
 import keyring
 import requests
-import logging
-
 from requests import Session
 from requests.auth import HTTPBasicAuth
 
-logger = logging.getLogger(__name__)
+from config.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
 API_BASE_URL = "https://oauth.reddit.com"
@@ -76,7 +76,7 @@ class RedditSession:
 
     def _refresh_token(self) -> None:
         """Refresh Reddit OAuth token."""
-        logger.info("Refreshing Reddit OAuth token")
+        logger.info("reddit.token_refresh")
         try:
             response = requests.post(
                 TOKEN_URL,
@@ -101,7 +101,7 @@ class RedditSession:
         )
 
         self.session.headers.update({"Authorization": f"Bearer {self._token}"})
-        logger.info("Reddit session authorized until %s", self._token_expiry)
+        logger.info("reddit.session_authorized", expires_at=str(self._token_expiry))
 
     @classmethod
     def from_keyring(

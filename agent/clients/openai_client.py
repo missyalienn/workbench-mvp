@@ -10,10 +10,9 @@ from __future__ import annotations
 import keyring
 from openai import OpenAI
 
-from config.logging_config import configure_logging, get_logger
+from config.logging_config import get_logger
 
 
-configure_logging()
 logger = get_logger(__name__)
 
 
@@ -21,11 +20,10 @@ def get_openai_client(environment: str = "openai-dev") -> OpenAI:
     """Return an authenticated OpenAI client using keyring credentials."""
     api_key = keyring.get_password("openai-key", environment)
     if not api_key:
-        msg = f"Missing OpenAI credentials in keyring for environment: {environment}."
-        logger.error(msg)
-        raise RuntimeError(msg)
+        logger.error("openai_client.missing_credentials", environment=environment)
+        raise RuntimeError(f"Missing OpenAI credentials in keyring for environment: {environment}.")
 
-    logger.info("Initialized OpenAI client.")
+    logger.info("openai_client.initialized", environment=environment)
     return OpenAI(api_key=api_key)
 
 

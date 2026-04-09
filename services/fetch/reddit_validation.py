@@ -86,21 +86,21 @@ def passes_post_validation(raw_post: dict[str, Any]) -> bool:
     """Apply metadata veto checks before cleaning/scoring."""
     post_id = raw_post.get("id")
     if is_deleted_or_removed(raw_post.get("selftext")):
-        logger.info("Rejecting post %s: deleted_or_removed", post_id)
+        logger.info("fetch.post_rejected", post_id=post_id, reason="deleted_or_removed")
         return False
     if is_auto_moderator(raw_post):
-        logger.info("Rejecting post %s: automoderator", post_id)
+        logger.info("fetch.post_rejected", post_id=post_id, reason="automoderator")
         return False
     if is_created_from_ads_ui(raw_post):
-        logger.info("Rejecting post %s: ads_ui", post_id)
+        logger.info("fetch.post_rejected", post_id=post_id, reason="ads_ui")
         return False
     if not is_self_post(raw_post):
-        logger.info("Rejecting post %s: non_self_post", post_id)
+        logger.info("fetch.post_rejected", post_id=post_id, reason="non_self_post")
         return False
     if is_showcase_post(raw_post):
-        logger.info("Rejecting post %s: showcase_post", post_id)
+        logger.info("fetch.post_rejected", post_id=post_id, reason="showcase_post")
         return False
     if is_nsfw(raw_post):
-        logger.info("Rejecting post %s: nsfw", post_id)
+        logger.info("fetch.post_rejected", post_id=post_id, reason="nsfw")
         return False
     return True
