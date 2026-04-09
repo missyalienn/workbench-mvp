@@ -51,7 +51,7 @@ def init_cache(db_path: str) -> None:
             )
             connection.commit()
     except sqlite3.Error as exc:
-        logger.warning("Embedding cache init failed: %s", exc)
+        logger.warning("embedding.cache_init_failed", error=str(exc))
 
 
 def serialize_vector(vector: Iterable[float]) -> bytes:
@@ -94,15 +94,11 @@ def get_embedding(
         dims, blob = row
         vector = deserialize_vector(blob, int(dims))
         if vector is None:
-            logger.warning(
-                "Embedding cache entry invalid (digest=%s, model=%s)",
-                content_digest,
-                model,
-            )
+            logger.warning("embedding.cache_entry_invalid", digest=content_digest, model=model)
             return None
         return vector, int(dims)
     except sqlite3.Error as exc:
-        logger.warning("Embedding cache read failed: %s", exc)
+        logger.warning("embedding.cache_read_failed", error=str(exc))
         return None
 
 
@@ -128,4 +124,4 @@ def set_embedding(
             )
             connection.commit()
     except sqlite3.Error as exc:
-        logger.warning("Embedding cache write failed: %s", exc)
+        logger.warning("embedding.cache_write_failed", error=str(exc))

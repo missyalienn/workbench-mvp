@@ -1,4 +1,6 @@
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,7 +11,7 @@ from config.settings import settings
 from services.embedding.client import EmbeddingClient, EmbeddingError
 from services.embedding.ranking import RankingInput, embed_query, rank_candidates, zero_score_posts
 from services.embedding.store_factory import get_vector_store
-from services.http.retry_policy import RateLimitError, RetryableFetchError
+import requests
 from services.reddit_client import RedditClient
 
 from .comment_pipeline import filter_comments
@@ -45,7 +47,7 @@ def _score_post_candidates(candidates: list[PostCandidate]) -> list[Post]:
             body=candidate.cleaned_body,
         )
         if not passed:
-            logger.info("Rejecting post %s: below_threshold", post_id)
+            logger.info("fetch.post_rejected", reason="below_threshold", post_id=post_id)
             continue
 
         post_model = build_post_model(
@@ -82,11 +84,7 @@ def _fetch_posts_for_pair(
         ):
             post_id = raw_post.get("id")
             if not post_id:
-                logger.info(
-                    "Rejecting post without ID (subreddit=%s, term=%s)",
-                    subreddit,
-                    term,
-                )
+                logger.info("fetch.post_rejected", reason="no_id", subreddit=subreddit, term=term)
                 continue
 
             if not passes_post_validation(raw_post):
@@ -96,28 +94,18 @@ def _fetch_posts_for_pair(
             body = clean_text(raw_post.get("selftext", ""))
 
             if is_post_too_short(body):
-                logger.info("Rejecting post %s: too_short", post_id)
+                logger.info("fetch.post_rejected", reason="too_short", post_id=post_id)
                 continue
 
             if has_seen_post(post_id, local_seen_post_ids):
-                logger.info("Rejecting post %s: duplicate", post_id)
+                logger.info("fetch.post_rejected", reason="duplicate", post_id=post_id)
                 continue
 
             try:
                 raw_comments = reddit_client.fetch_comments(post_id=post_id)
-            except RateLimitError as exc:
-                logger.warning(
-                    "429: Too many requests while fetching comments (post_id=%s): %s",
-                    post_id,
-                    exc,
-                )
-                continue
-            except RetryableFetchError as exc:
-                logger.warning(
-                    "Comments fetch failed after retries (post_id=%s): %s",
-                    post_id,
-                    exc,
-                )
+            except requests.exceptions.RequestException as exc:
+                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                logger.warning("fetch.request_failed", context="comments", post_id=post_id, status_code=status_code, error=str(exc))
                 continue
 
             filtered_comments = filter_comments(
@@ -128,7 +116,7 @@ def _fetch_posts_for_pair(
 
             comment_models = build_comment_models(filtered_comments, fetched_at)
             if not comment_models:
-                logger.info("Rejecting post %s: no_comments", post_id)
+                logger.info("fetch.post_rejected", reason="no_comments", post_id=post_id)
                 continue
 
             candidates.append(
@@ -140,21 +128,20 @@ def _fetch_posts_for_pair(
                     fetched_at=fetched_at,
                 )
             )
-    except RateLimitError as exc:
-        logger.warning(
-            "429: Too many requests while searching (subreddit=%s, term=%s): %s",
-            subreddit,
-            term,
-            exc,
-        )
-    except RetryableFetchError as exc:
-        logger.warning(
-            "Search failed after retries (subreddit=%s, term=%s): %s",
-            subreddit,
-            term,
-            exc,
-        )
+    except requests.exceptions.RequestException as exc:
+        status_code = getattr(getattr(exc, "response", None), "status_code", None)
+        logger.warning("fetch.request_failed", context="search", subreddit=subreddit, term=term, status_code=status_code, error=str(exc))
     return candidates
+
+
+def _context_wrapper(fn, /, **kwargs):
+    """Run fn(**kwargs) inside a copy of the current contextvars context.
+
+    Captures the calling thread's context at dispatch time so that
+    structlog's bound variables (e.g. plan_id) are visible inside worker threads.
+    """
+    ctx = copy_context()
+    return ctx.run(fn, **kwargs)
 
 
 def run_reddit_fetcher(
@@ -166,6 +153,7 @@ def run_reddit_fetcher(
     """
     Orchestrate the Reddit fetch pipeline for a planner-produced SearchPlan.
     """
+    t0 = time.monotonic()
     fetched_at = utc_now()
     accepted_posts: list[Post] = []
     candidate_posts: list[PostCandidate] = []
@@ -177,6 +165,7 @@ def run_reddit_fetcher(
         for subreddit in plan.subreddits
         for term in plan.search_terms
     ]
+    logger.info("fetch.start", n_tasks=len(tasks), post_limit=post_limit)
 
     def _merge_candidates(candidates: list[PostCandidate]) -> None:
         for candidate in candidates:
@@ -202,6 +191,7 @@ def run_reddit_fetcher(
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {
                 executor.submit(
+                    _context_wrapper,
                     _fetch_posts_for_pair,
                     subreddit=subreddit,
                     term=term,
@@ -215,12 +205,7 @@ def run_reddit_fetcher(
                 try:
                     candidates = future.result()
                 except Exception as exc:
-                    logger.warning(
-                        "Concurrent fetch failed (subreddit=%s, term=%s): %s",
-                        subreddit,
-                        term,
-                        exc,
-                    )
+                    logger.warning("fetch.concurrent_failed", subreddit=subreddit, term=term, error=str(exc))
                     continue
                 _merge_candidates(candidates)
 
@@ -236,15 +221,14 @@ def run_reddit_fetcher(
             ranking_input = RankingInput(query=plan_query, candidates=candidate_posts)
             query_embedding = embed_query(ranking_input, embedder)
             accepted_posts = rank_candidates(ranking_input, query_embedding, embedder)
-            logger.info('Semantic Ranking: Ranked %d posts', len(accepted_posts))
+            logger.info("fetch.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_candidates=len(candidate_posts), n_ranked=len(accepted_posts))
         except EmbeddingError as exc:
-            logger.warning(
-                "Semantic ranking failed; fall back to karma-only ordering (reason=%s)",
-                exc,
-            )
+            logger.warning("fetch.ranking_fallback", error=str(exc))
             accepted_posts = zero_score_posts(candidate_posts)
+            logger.info("fetch.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_candidates=len(candidate_posts), n_ranked=len(accepted_posts))
     else:
         accepted_posts = _score_post_candidates(candidate_posts)
+        logger.info("fetch.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_candidates=len(candidate_posts), n_ranked=len(accepted_posts))
 
     return FetchResult(
         query=plan_query,

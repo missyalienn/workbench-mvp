@@ -3,6 +3,7 @@ Core planner logic with single LLM call.
 """
 
 import json
+import time
 from uuid import uuid4
 
 from .model import SearchPlan
@@ -41,7 +42,7 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
     """
     # Validate user_query is non-empty
     if not user_query or not user_query.strip():
-        logger.error("Empty user_query provided")
+        logger.error("planner.invalid_query", reason="empty")
         raise ValueError("user_query cannot be empty")
 
     # Generate unique plan_id
@@ -50,8 +51,9 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
 
     # Wrap all operations in plan_id context for traceability
     with plan_context_scope(plan_id_str):
-        logger.info(f"Received query: {user_query}")
-        logger.debug(f"Generated plan_id: {plan_id_str}")
+        t0 = time.monotonic()
+        logger.info("planner.start", query=user_query)
+        logger.debug("planner.plan_id_generated", plan_id=plan_id_str)
 
         try:
             # Get OpenAI client
@@ -61,7 +63,7 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
             user_message = USER_PROMPT_TEMPLATE.format(user_query=user_query)
 
             # Call OpenAI API with JSON mode
-            logger.debug("Calling OpenAI API for search plan generation")
+            logger.debug("planner.llm_call_start", model=model)
             response = client.chat.completions.create(
                 model=model,
                 messages=[
@@ -76,7 +78,7 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
             raw_content = response.choices[0].message.content
             if raw_content is None:
                 raise RuntimeError("No content returned from LLM")
-            logger.debug(f"LLM response: {raw_content}")
+            logger.debug("planner.llm_response_received", raw_content=raw_content)
 
             response_dict = json.loads(raw_content)
 
@@ -86,16 +88,14 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
             # Create SearchPlan (Pydantic validates)
             plan = SearchPlan(query=user_query, **response_dict)
 
-            logger.info(f"Plan generated successfully [plan_id={plan.plan_id}]")
-            logger.debug(
-                f"Full plan: search_terms={plan.search_terms}, subreddits={plan.subreddits}, notes={plan.notes}"
-            )
+            logger.info("planner.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_terms=len(plan.search_terms), n_subreddits=len(plan.subreddits))
+            logger.debug("planner.plan_details", search_terms=plan.search_terms, subreddits=plan.subreddits, notes=plan.notes)
 
             return plan
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM response as JSON: {e}")
+            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e))
             raise RuntimeError(f"Invalid JSON response from LLM: {e}") from e
         except Exception as e:
-            logger.error(f"Failed to generate search plan: {e}")
+            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e))
             raise RuntimeError(f"Search plan generation failed: {e}") from e

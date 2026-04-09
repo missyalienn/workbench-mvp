@@ -28,10 +28,10 @@
 
 ### Unchanged Modules
 
-* `SelectorConfig`
+* `ContextBuilderConfig`
 * `select_posts`
 * `build_post_payload`
-* `build_summarize_request`
+* `build_context_request`
 * `PostPayload` DTO shape
 * `FetchResult`
 * Comment filtering logic

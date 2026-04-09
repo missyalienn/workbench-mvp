@@ -24,12 +24,13 @@ from __future__ import annotations
 
 import hashlib
 
+import openai
 from openai import OpenAI
 
 from config.logging_config import get_logger
-from services.fetch.utils.text_utils import clean_text
-from services.http.retry_policy import RetryableFetchError, fetch_with_retry
 from services.embedding.store import VectorStore
+from services.fetch.utils.text_utils import clean_text
+from services.http.retry_policy import build_retry
 
 logger = get_logger(__name__)
 
@@ -38,8 +39,17 @@ class EmbeddingError(RuntimeError):
     """Raised when an embedding cannot be retrieved."""
 
 
-class EmbeddingRetryableError(RetryableFetchError):
-    """Retryable transport error for embedding provider calls."""
+def _is_retryable_openai(exc: Exception) -> bool:
+    """Return True for transient OpenAI API failures that warrant a retry."""
+    return isinstance(exc, (
+        openai.RateLimitError,
+        openai.APITimeoutError,
+        openai.APIConnectionError,
+        openai.InternalServerError,
+    ))
+
+
+_embedding_retry = build_retry(is_retryable=_is_retryable_openai)
 
 
 def normalize_text(text: str) -> str:
@@ -52,17 +62,10 @@ def content_digest(normalized_text: str) -> str:
     return hashlib.sha256(normalized_text.encode("utf-8")).hexdigest()
 
 
-@fetch_with_retry(logger=logger)
+@_embedding_retry
 def _fetch_embedding(*, client: OpenAI, model: str, text: str) -> list[float]:
-    try:
-        response = client.embeddings.create(
-            model=model,
-            input=text,
-        )
-        embedding = response.data[0].embedding
-        return list(embedding)
-    except Exception as exc:  # Transport failures aren't deterministic in tests.
-        raise EmbeddingRetryableError("Embedding request failed") from exc
+    response = client.embeddings.create(model=model, input=text)
+    return list(response.data[0].embedding)
 
 
 class EmbeddingClient:
@@ -89,7 +92,7 @@ class EmbeddingClient:
                 model=self._model,
                 text=normalized,
             )
-        except RetryableFetchError as exc:
+        except openai.APIError as exc:
             raise EmbeddingError("Failed to fetch embedding") from exc
 
         dims = len(vector)
@@ -100,7 +103,6 @@ class EmbeddingClient:
 __all__ = [
     "EmbeddingError",
     "EmbeddingClient",
-    "EmbeddingRetryableError",
     "content_digest",
     "normalize_text",
 ]

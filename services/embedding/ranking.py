@@ -13,9 +13,11 @@ Usage:
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from config.logging_config import get_logger
 from config.settings import settings
 from services.embedding.client import EmbeddingClient, EmbeddingError
 from services.embedding.similarity import cosine_similarity
@@ -24,6 +26,8 @@ from services.fetch.schemas import Post
 
 if TYPE_CHECKING:
     from services.fetch.reddit_fetcher import PostCandidate
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -60,6 +64,8 @@ def rank_candidates(
     embedder: EmbeddingClient,
 ) -> list[Post]:
     """Return scored Post models from candidates."""
+    t0 = time.monotonic()
+    logger.info("ranking.start", n_candidates=len(ranking_input.candidates))
     query_vector, _ = query_embedding
     scored: list[Post] = []
     for candidate in ranking_input.candidates:
@@ -70,7 +76,8 @@ def rank_candidates(
         try:
             post_vector, _ = embedder.get_or_create_embedding(post_text)
             score = cosine_similarity(query_vector, post_vector)
-        except EmbeddingError:
+        except EmbeddingError as exc:
+            logger.warning("ranking.embedding_failed", post_id=candidate.raw_post.get("id"), error=str(exc))
             score = 0.0
 
         scored.append(
@@ -85,6 +92,7 @@ def rank_candidates(
                 fetched_at=candidate.fetched_at,
             )
         )
+    logger.info("ranking.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_ranked=len(scored))
     return scored
 
 

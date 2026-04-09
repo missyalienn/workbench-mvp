@@ -35,7 +35,7 @@ class SearchPlan(BaseModel):
         max_subreddit_count = settings.MAX_SUBREDDITS
 
         if not subreddits:
-            logger.warning(f"No subreddits provided. Defaulting to {default}")
+            logger.warning("planner.model.no_subreddits", default=default)
             return default[:max_subreddit_count]
 
         valid_subreddits: list[str] = []
@@ -52,12 +52,12 @@ class SearchPlan(BaseModel):
                 valid_subreddits.append(cleaned_subreddit)
 
         if not valid_subreddits:
-            logger.warning(f"No valid subreddits found. Defaulting to {default}")
+            logger.warning("planner.model.no_valid_subreddits", default=default)
             return default[: settings.MAX_SUBREDDITS]
 
         if len(valid_subreddits) > settings.MAX_SUBREDDITS:
             truncated = valid_subreddits[: settings.MAX_SUBREDDITS]
-            logger.warning(f"Truncated subreddits to {truncated}")
+            logger.warning("planner.model.subreddits_truncated", truncated=truncated)
             valid_subreddits = truncated
 
         return valid_subreddits
@@ -87,7 +87,7 @@ class SearchPlan(BaseModel):
             cleaned_terms.append(term)
 
             if len(cleaned_terms) == max_term_count:
-                logger.warning(f"Truncated search_terms to {cleaned_terms}")
+                logger.warning("planner.model.search_terms_truncated", truncated=cleaned_terms)
                 break
         return cleaned_terms
 

@@ -53,7 +53,7 @@ class Settings(BaseSettings):
         #"homeowners", 
         "fixit",
         "plumbing",
-        "askelectricians",
+        "woodworking",
         "howto",
         "homedecorating",
         "diyuk",
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
         validation_alias="FETCHER_MAX_COMMENTS_PER_POST",
         description=(
             "Fetch-time cap on comments retained per post after quality filtering. "
-            "Distinct from SelectorConfig.max_comments_per_post, which further limits "
+            "Distinct from ContextBuilderConfig.max_comments_per_post, which further limits "
             "how many comment excerpts are included in the LLM payload."
         ),
     )

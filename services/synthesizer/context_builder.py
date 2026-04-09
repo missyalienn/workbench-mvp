@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from .models import PostPayload, EvidenceRequest
-from services.selector.config import SelectorConfig
-from services.summarizer.config import EvidenceOutputConfig
+import time
+
+from services.synthesizer.models import PostPayload, EvidenceRequest
+from services.context_builder.config import ContextBuilderConfig
+from services.synthesizer.config import EvidenceOutputConfig
 from services.fetch.schemas import Comment, FetchResult, Post
 
 from config.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-def select_posts(fetch_result: FetchResult, cfg: SelectorConfig) -> list[Post]: 
+def select_posts(fetch_result: FetchResult, cfg: ContextBuilderConfig) -> list[Post]:
     """
-    Select top posts from a FetchResult to include in LLM summarization context.
-    Ranks posts (by relevance_score then post_karma) and returns up to cfg.max_posts. 
-    Does not mutate posts or truncate fields; comments remainattached for downstream usage.
+    Select top posts from a FetchResult to include in LLM context.
+    Ranks posts (by relevance_score then post_karma) and returns up to cfg.max_posts.
+    Does not mutate posts or truncate fields; comments remain attached for downstream usage.
     """
     ranked_posts: list[Post] = list(fetch_result.posts or [])
 
@@ -21,10 +23,10 @@ def select_posts(fetch_result: FetchResult, cfg: SelectorConfig) -> list[Post]:
     ranked_posts.sort(key=lambda post: post.relevance_score or 0.0, reverse=True)
 
     return ranked_posts[: cfg.max_posts]
-    
-def build_comment_excerpts(comments: list[Comment], cfg: SelectorConfig) -> list[str]: 
+
+def build_comment_excerpts(comments: list[Comment], cfg: ContextBuilderConfig) -> list[str]:
     """
-    Select and truncate comment bodies for summarization. Take a list of Comment objects, 
+    Select and truncate comment bodies for LLM context. Take a list of Comment objects,
     sort by comment_karma descending and truncate to cfg.max_comment_chars.
     Return a list of truncated comment bodies.
     """
@@ -49,7 +51,7 @@ def build_comment_excerpts(comments: list[Comment], cfg: SelectorConfig) -> list
             excerpts.append(body)
     return excerpts
 
-def build_post_payload(post: Post, cfg: SelectorConfig) -> PostPayload:
+def build_post_payload(post: Post, cfg: ContextBuilderConfig) -> PostPayload:
     """Build a PostPayload from a single Post object."""
 
     full_body = post.selftext or ""
@@ -75,21 +77,24 @@ def build_post_payload(post: Post, cfg: SelectorConfig) -> PostPayload:
         matched_keywords=post.matched_keywords,
     )
 
-def build_summarize_request(
+def build_context_request(
     fetch_result: FetchResult,
-    cfg: SelectorConfig,
+    cfg: ContextBuilderConfig,
     prompt_version: str,
     summarizer_cfg: EvidenceOutputConfig,
 ) -> EvidenceRequest:
     """
-    Build a SummarizeRequest DTO from a FetchResult.
+    Build an EvidenceRequest from a FetchResult.
 
     - Selects top posts via select_posts.
     - Builds PostPayload objects for each selected post.
-    - Attaches query/plan_id, prompt version, selector config metadata, and summarizer limits.
+    - Attaches query/plan_id, prompt version, context builder config metadata, and synthesizer limits.
     """
+    t0 = time.monotonic()
+    logger.info("context.start", n_posts_available=len(fetch_result.posts or []))
     selected_posts = select_posts(fetch_result, cfg)
     post_payloads = [build_post_payload(post, cfg) for post in selected_posts]
+    logger.info("context.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_posts=len(post_payloads))
 
     return EvidenceRequest(
         query=fetch_result.query,

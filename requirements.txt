@@ -106,3 +106,4 @@ wheel==0.42.0
 black==25.9.0
 Typer==0.20.0
 tenacity==9.1.2
+structlog==25.5.0

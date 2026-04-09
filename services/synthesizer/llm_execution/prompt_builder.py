@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 
-from services.summarizer.models import EvidenceRequest
+from services.synthesizer.models import EvidenceRequest
 
 from .types import PromptMessage
 

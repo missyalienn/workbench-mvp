@@ -71,20 +71,20 @@ User query (string)
     │  → FetchResult: {posts[], plan_id, query, ...}
     │
     ▼
-[Selector] services/summarizer/selector.py
+[Context Builder] services/synthesizer/context_builder.py
     │  Sort by relevance_score, then post_karma
     │  Cap to max_posts
     │  Truncate body/comments to char limits
     │  → EvidenceRequest: {query, plan_id, post_payloads[], config constraints}
     │
     ▼
-[Prompt Builder] services/summarizer/llm_execution/prompt_builder.py
+[Prompt Builder] services/synthesizer/llm_execution/prompt_builder.py
     │  Renders system + user messages
     │  User content = compact JSON of post_payloads
     │  → list[PromptMessage]
     │
     ▼
-[LLM Execution] services/summarizer/llm_execution/llm_client.py
+[LLM Execution] services/synthesizer/llm_execution/llm_client.py
     │  LLM call (gpt-4.1-mini, structured output)
     │  → EvidenceResult: {status, threads[], limitations[], prompt_version}
     │
@@ -104,13 +104,13 @@ There is a second output mode (`pipeline_stage_summary`) that runs the same pipe
 | **Reddit Fetcher**      | `services/fetch/reddit_fetcher.py`                    | Orchestrates fetch, filter, dedup, and scoring    |
 | **Reddit Client**       | `services/reddit_client/`                             | Raw Reddit API calls (search + comments)          |
 | **Embedding / Ranking** | `services/embedding/`                                 | Cosine similarity scoring; SQLite embedding cache |
-| **Selector**            | `services/summarizer/selector.py`                     | Post ranking, truncation, and payload assembly    |
-| **Prompt Builder**      | `services/summarizer/llm_execution/prompt_builder.py` | Renders LLM messages from EvidenceRequest         |
-| **LLM Client**          | `services/summarizer/llm_execution/llm_client.py`     | Calls OpenAI and parses EvidenceResult            |
-| **Stage Summary**       | `services/summarizer/stage_summary.py`                | Diagnostic output per pipeline stage              |
-| **Demo Pipeline**       | `demo/pipeline.py`                                    | Top-level orchestrator; two entry functions       |
+| **Context Builder**     | `services/synthesizer/context_builder.py`             | Post ranking, truncation, and payload assembly    |
+| **Prompt Builder**      | `services/synthesizer/llm_execution/prompt_builder.py` | Renders LLM messages from EvidenceRequest        |
+| **LLM Client**          | `services/synthesizer/llm_execution/llm_client.py`    | Calls OpenAI and parses EvidenceResult            |
+| **Stage Summary**       | `services/synthesizer/stage_summary.py`               | Diagnostic output per pipeline stage              |
+| **Demo Pipeline**       | `api/pipeline.py`                                    | Top-level orchestrator; two entry functions       |
 
-`services/selector/` (note: different from `services/summarizer/selector.py`) contains only `SelectorConfig` — a data class for capacity limits.
+`services/context_builder/` contains `ContextBuilderConfig` — a data class for capacity limits. Selection logic lives in `services/synthesizer/context_builder.py`.
 
 ---
 
@@ -118,15 +118,15 @@ There is a second output mode (`pipeline_stage_summary`) that runs the same pipe
 
 | Concern                    | Location                                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------------------- |
-| Orchestration              | `demo/pipeline.py` → `_run_pipeline()`                                                      |
+| Orchestration              | `api/pipeline.py` → `_run_pipeline()`                                                      |
 | LLM call #1 (planning)     | `agent/planner/core.py:create_search_plan()`                                                |
-| LLM call #2 (curation)     | `services/summarizer/llm_execution/llm_client.py`                                           |
+| LLM call #2 (curation)     | `services/synthesizer/llm_execution/llm_client.py`                                          |
 | Fetch concurrency          | `reddit_fetcher.py` — `ThreadPoolExecutor`, controlled by `FETCHER_ENABLE_CONCURRENCY`      |
 | Semantic ranking           | `services/embedding/ranking.py` — `rank_candidates()`                                       |
 | Keyword ranking (fallback) | `services/fetch/scoring.py` — `evaluate_post_relevance()`                                   |
 | Embedding cache            | SQLite at `data/embedding_cache.sqlite3`, via `services/embedding/`                         |
 | Subreddit allowlist        | `config/settings.py` → `ALLOWED_SUBREDDITS`; enforced in `agent/planner/model.py` validator |
-| Config / limits            | `config/run_config.yaml` → loaded by `demo/pipeline.py`                                     |
+| Config / limits            | `config/run_config.yaml` → loaded by `api/pipeline.py`                                     |
 | Retry / rate limiting      | `services/http/retry_policy.py`                                                             |
 
 ---
@@ -155,7 +155,7 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 - The curator LLM is instructed to select/rank only from provided payloads — it does not generate content
 
 **Confirmed from code (follow-up):**
-- `demo/app.py` — FastAPI app served via uvicorn. Two routes: `GET /` (health check) and `POST /api/demo` accepting `{"query": str}`, calls `run_evidence_pipeline()` directly. CORS allows `localhost:5173`.
+- `api/app.py` — FastAPI app served via uvicorn. Two routes: `GET /` (health check) and `POST /api/run` accepting `{"query": str}`, calls `run_evidence_pipeline()` directly. CORS allows `localhost:5173`.
 - `services/http/` — outbound only. Single file (`retry_policy.py`). No inbound API server.
 - `services/fetch/comment_pipeline.py` — filters comments by: duplicate ID, AutoModerator, deleted/removed body, karma < 2, minimum length. Survivors sorted by karma descending, capped at 5 per post via hardcoded `MAX_COMMENTS_PER_POST = 5`. This cap is separate from the `max_comments_per_post` limit applied later in the selector.
 
@@ -172,7 +172,7 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 - Choose a single model and centralize configuration
 
 ### 3. Clarify selector module structure
-- `services/selector/` and `services/summarizer/selector.py` have overlapping names and unclear separation of responsibilities
+- `services/selector/` and `services/summarizer/` renamed to `services/context_builder/` and `services/synthesizer/` — completed
 - Ownership of selection logic is ambiguous
 
 ---
@@ -194,15 +194,15 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 ### Gaps / Risks
 
 - **Planner model is hardcoded.** `gpt-4o-mini` in `planner/core.py` is inconsistent with the rest of the configurable design.
-- **Dual selector modules.** `services/selector/` (just config) and `services/summarizer/selector.py` (actual logic) is confusing naming. Ownership of selection is unclear at a glance.
+- **Module naming resolved.** `services/selector/` and `services/summarizer/` renamed to `services/context_builder/` and `services/synthesizer/` respectively. Shims in place; callers migrated.
 - **Two overlapping comment caps.** `MAX_COMMENTS_PER_POST = 5` hardcoded in `comment_pipeline.py` and `max_comments_per_post` in the selector config are independent limits on the same thing — a silent consistency risk.
-- **API layer is a stub.** `demo/app.py` has no error handling. A pipeline failure returns an unhandled 500.
-- **Orchestrator lives in `demo/`.** `demo/pipeline.py` is the core pipeline orchestrator. Burying it under `demo/` understates its role.
+- **API layer is a stub.** `api/app.py` has no error handling. A pipeline failure returns an unhandled 500.
+- **Orchestrator lives in `demo/`.** `api/pipeline.py` is the core pipeline orchestrator. Burying it under `demo/` understates its role.
 
 ### Minimum Fixes Before Demo
 
 1. Make planner model configurable via `run_config.yaml` — closes an obvious inconsistency a reviewer will notice immediately.
-2. Add error handling to `POST /api/demo` — catch pipeline exceptions and return a structured error response.
+2. Add error handling to `POST /api/run` — catch pipeline exceptions and return a structured error response.
 3. Resolve the comment cap inconsistency — clarify or consolidate the hardcoded `5` and the selector config value.
 4. Rename or restructure the selector modules — even a clear docstring explaining the division is enough.
 
@@ -217,16 +217,16 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 **Fix:**
 - Renamed existing `model` key in `run_config.yaml` to `summarizer_model` for clarity; added `planner_model` alongside it — both set to `gpt-4.1-mini`
 - Updated `create_search_plan()` to accept an optional `model` parameter, defaulting to `gpt-4.1-mini`
-- Updated `demo/pipeline.py` and `scripts/runs/run_evidence_preview.py` to read both keys from config and pass `planner_model` through to `create_search_plan()`
+- Updated `api/pipeline.py` and `scripts/runs/run_evidence_preview.py` to read both keys from config and pass `planner_model` through to `create_search_plan()`
 - Other callers of `create_search_plan()` (smoke scripts, fetch scripts) use the default and required no changes
 
-**Files modified:** `config/run_config.yaml`, `agent/planner/core.py`, `demo/pipeline.py`, `scripts/runs/run_evidence_preview.py`
+**Files modified:** `config/run_config.yaml`, `agent/planner/core.py`, `api/pipeline.py`, `scripts/runs/run_evidence_preview.py`
 
 ---
 
 ### 2. Missing error handling in the FastAPI demo endpoint
 
-**Problem:** `POST /api/demo` calls `run_evidence_pipeline()` with no exception handling. The pipeline raises typed errors (`LLMTransportError`, `LLMStructuredOutputError` from `services/summarizer/llm_execution/errors.py`, and `RuntimeError` from the planner) — none of these are caught, so any failure surfaces as an unhandled 500 with no structured body.
+**Problem:** `POST /api/run` calls `run_evidence_pipeline()` with no exception handling. The pipeline raises typed errors (`LLMTransportError`, `LLMStructuredOutputError` from `services/synthesizer/llm_execution/errors.py`, and `RuntimeError` from the planner) — none of these are caught, so any failure surfaces as an unhandled 500 with no structured body.
 
 **Repo context:**
 - The pipeline has a typed error hierarchy (`SummarizerLLMError` and subtypes) — these are the right catch targets for downstream failures
@@ -242,16 +242,16 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 - Log each failure using `get_logger` consistent with the existing logging pattern
 - Do not introduce `HTTPException` or a new error model — use `EvidenceResult` as the response contract so the frontend sees a consistent shape regardless of outcome
 
-**Files likely affected:** `demo/app.py`
+**Files likely affected:** `api/app.py`
 
 ---
 
 ### 3. Hardcoded comment cap in `comment_pipeline.py`
 
-**Problem:** `MAX_COMMENTS_PER_POST = 5` is hardcoded as a module-level constant in `services/fetch/comment_pipeline.py`. The selector already has a `max_comments_per_post` field in `SelectorConfig`. Two separate caps on the same thing with no explicit relationship is a silent correctness risk.
+**Problem:** `MAX_COMMENTS_PER_POST = 5` is hardcoded as a module-level constant in `services/fetch/comment_pipeline.py`. The context builder already has a `max_comments_per_post` field in `ContextBuilderConfig`. Two separate caps on the same thing with no explicit relationship is a silent correctness risk.
 
 **Fix (complete):**
-- Moved cap into `config/settings.py` as `FETCHER_MAX_COMMENTS_PER_POST: int = 5` with a description documenting its distinction from `SelectorConfig.max_comments_per_post`
+- Moved cap into `config/settings.py` as `FETCHER_MAX_COMMENTS_PER_POST: int = 5` with a description documenting its distinction from `ContextBuilderConfig.max_comments_per_post`
 - Removed `MAX_COMMENTS_PER_POST` module-level constant from `comment_pipeline.py`
 - Added `max_comments: int = 5` parameter to `filter_comments()`; updated docstring to clarify the two-cap distinction
 - Updated `reddit_fetcher.py` to pass `settings.FETCHER_MAX_COMMENTS_PER_POST` explicitly
@@ -266,7 +266,7 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 
 ### FastAPI error handling — not yet implemented
 
-`POST /api/demo` still has no exception handling. See fix plan in ### 2 above.
+`POST /api/run` still has no exception handling. See fix plan in ### 2 above.
 
 ### Clarify selector module structure
 
@@ -275,7 +275,7 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 
 ### Orchestrator lives in `demo/`
 
-- `demo/pipeline.py` is the core pipeline orchestrator but is buried under `demo/`, coupling it to the demo context
+- `api/pipeline.py` is the core pipeline orchestrator but is buried under `demo/`, coupling it to the demo context
 - Should be moved to a top-level location (e.g., `pipeline/` or `agent/`) so it is clearly a first-class component, not a demo artifact
 
 ### Happy Path Quality Check 

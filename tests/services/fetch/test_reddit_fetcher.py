@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import requests
+
 from agent.planner.model import SearchPlan
 from services.fetch.reddit_fetcher import run_reddit_fetcher
-from services.http.retry_policy import RateLimitError, RetryableFetchError
 
 
 def _make_plan() -> SearchPlan:
@@ -20,11 +21,11 @@ def _make_plan() -> SearchPlan:
 
 
 def test_search_error(mocker):
-    """Search-level RateLimitError/RetryableFetchError should be handled and return an empty result."""
+    """Search-level request failure should be handled and return an empty result."""
     plan = _make_plan()
 
     mock_client = mocker.Mock()
-    mock_client.paginate_search.side_effect = RateLimitError("rate limited")
+    mock_client.paginate_search.side_effect = requests.exceptions.ConnectionError("rate limited")
 
     mocker.patch("services.fetch.reddit_fetcher.RedditClient", return_value=mock_client)
 
@@ -35,7 +36,7 @@ def test_search_error(mocker):
 
 
 def test_comment_error(mocker):
-    """Comment-level RateLimitError/RetryableFetchError should be handled and skip the post."""
+    """Comment-level request failure should be handled and skip the post."""
     plan = _make_plan()
 
     mock_client = mocker.Mock()
@@ -48,7 +49,7 @@ def test_comment_error(mocker):
             }
         ]
     )
-    mock_client.fetch_comments.side_effect = RetryableFetchError("temporary failure")
+    mock_client.fetch_comments.side_effect = requests.exceptions.ConnectionError("temporary failure")
 
     mocker.patch("services.fetch.reddit_fetcher.RedditClient", return_value=mock_client)
     mocker.patch("services.fetch.reddit_fetcher.passes_post_validation", return_value=True)

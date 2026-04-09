@@ -6,13 +6,18 @@ It must never return raw text to callers.
 
 from __future__ import annotations
 
+import time
+
 from openai import OpenAI
 from pydantic import ValidationError
 
-from services.summarizer.models import EvidenceResult
+from config.logging_config import get_logger
+from services.synthesizer.models import EvidenceResult
 
 from .errors import LLMStructuredOutputError, LLMTransportError
 from .types import LLMClient, PromptMessage
+
+logger = get_logger(__name__)
 
 
 class OpenAILLMClient(LLMClient):
@@ -24,8 +29,9 @@ class OpenAILLMClient(LLMClient):
 
     def summarize_structured(self, *, messages: list[PromptMessage]) -> EvidenceResult:
         """Return a validated CurationResult or raise a typed error."""
-        payload = [ {"role": message.role, "content": message.content} for message in messages]
-      
+        t0 = time.monotonic()
+        logger.info("synthesizer.start", model=self._model, n_messages=len(messages))
+        payload = [{"role": message.role, "content": message.content} for message in messages]
 
         try:
             response = self._client.responses.parse(
@@ -35,6 +41,7 @@ class OpenAILLMClient(LLMClient):
             )
 
         except ValidationError as e:
+            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type="LLMStructuredOutputError")
             raise LLMStructuredOutputError(
                 "OpenAI response failed schema validation",
                 details={"model": self._model, "exc_type": type(e).__name__},
@@ -42,7 +49,7 @@ class OpenAILLMClient(LLMClient):
             ) from e
 
         except Exception as e:
-            # Network/auth/rate-limit/service errors typically land here.
+            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type="LLMTransportError")
             raise LLMTransportError(
                 "Failed to call OpenAI Responses API",
                 details={"model": self._model, "exc_type": type(e).__name__},
@@ -51,9 +58,11 @@ class OpenAILLMClient(LLMClient):
 
         parsed = response.output_parsed
         if parsed is None:
+            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error="output_parsed is None")
             raise LLMStructuredOutputError(
                 "OpenAI response did not return a parsed CurationResult",
                 details={"model": self._model},
             )
 
+        logger.info("synthesizer.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), status=parsed.status, n_threads=len(parsed.threads) if parsed.threads else 0)
         return parsed
