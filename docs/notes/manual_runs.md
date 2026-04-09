@@ -63,9 +63,27 @@ Quick, human-triggered checks we run when wiring new features or tuning the plan
 - **Question answered:** “What does the full demo output look like for one query?”
 - **Command:**
   ```bash
-  python scripts/runs/run_demo_pipeline.py "my floor squeaks when I walk on it"
+  python scripts/runs/run_demo_pipeline.py “my floor squeaks when I walk on it”
   ```
-- **Output:** Logs a JSON payload (no file output).
+- **Output:** Writes JSON artifact to `data/demo_runs/demo_run_{timestamp}.json` containing `query`, `search_plan`, and `evidence_result`.
+
+## Logging Verification
+
+### Verify JSON log output
+Confirm `LOG_FORMAT_TYPE=json` produces valid newline-delimited JSON (one object per log line):
+```bash
+LOG_FORMAT_TYPE=json python scripts/runs/run_demo_pipeline.py "my floor squeaks when I walk on it" 2>&1 | python -c "import sys,json; [json.loads(l) for l in sys.stdin if l.strip()]; print('All lines valid JSON')"
+```
+Expected output: `All lines valid JSON`. Any malformed line will raise a `JSONDecodeError` immediately.
+
+Note: standard `python -m json.tool` will not work here — it expects a single JSON document, not NDJSON.
+
+### Verify DEBUG rejection logs
+Confirm `LOG_LEVEL=DEBUG` surfaces per-post and per-comment rejection events:
+```bash
+LOG_LEVEL=DEBUG python scripts/runs/run_demo_pipeline.py "my floor squeaks when I walk on it" 2>&1 | grep -E "post_rejected|comment_rejected"
+```
+Expected output: lines with `fetch.post_rejected` (at `info`) and `fetch.comment_rejected` (at `debug`), each with `reason` and `post_id`/`comment_id` fields.
 
 ### Eval Artifacts Wrapper
 - **Script:** `scripts/runs/run_eval_artifacts.py`
