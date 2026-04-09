@@ -270,8 +270,7 @@ The settings mention a `pinecone` option for `VECTOR_STORE_TYPE`, but the defaul
 
 ### Clarify selector module structure
 
-- `services/selector/` (contains only `SelectorConfig`) and `services/summarizer/selector.py` (contains actual selection logic) have overlapping names and unclear separation of responsibilities
-- Ownership of selection logic is ambiguous — needs either a rename, a structural consolidation, or at minimum clear docstrings establishing the boundary
+- Resolved: renamed to `services/context_builder/` and `services/synthesizer/` respectively. See `docs/design/rename_selector_synthesizer.md`.
 
 ### Orchestrator lives in `demo/`
 
