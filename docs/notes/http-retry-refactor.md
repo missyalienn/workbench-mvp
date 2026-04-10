@@ -95,7 +95,7 @@ def _is_retryable_openai(exc: Exception) -> bool:
 _embedding_retry = build_retry(is_retryable=_is_retryable_openai)
 ```
 
-Applied as `@_embedding_retry` in `services/embedding/client.py`. `EmbeddingRetryableError` is deleted. The catch block in `EmbeddingClient.get_or_create_embedding` catches `openai.APIError` (base class for all openai SDK errors) and re-raises as `EmbeddingError`.
+Applied as `@_embedding_retry` in `services/embedding/client.py`. `EmbeddingRetryableError` is deleted. The catch block in `EmbeddingClient.embed` (formerly `get_or_create_embedding`) catches `openai.APIError` (base class for all openai SDK errors) and re-raises as `EmbeddingError`. The same decorator is applied to `_fetch_embeddings` (batch path).
 
 ---
 
@@ -143,5 +143,5 @@ except requests.exceptions.RequestException as exc:
     logger.warning("fetch.request_failed", status_code=status_code, error=str(exc))
 ```
 
-For the OpenAI/embedding client, after retries are exhausted `openai.APIError` is caught in `EmbeddingClient.get_or_create_embedding` and re-raised as `EmbeddingError` — no logging at that site. Any embedding failure surfaces as `EmbeddingError` to the caller (e.g. `rank_candidates`), which logs `ranking.embedding_failed`.
+For the OpenAI/embedding client, after retries are exhausted `openai.APIError` is caught in `EmbeddingClient.embed` and re-raised as `EmbeddingError`. In the batch path (`embed_texts`), chunk failures are caught and logged at the chunk level (`embedding.chunk_failed`) with `n_affected` — the caller receives `None` for affected items rather than an exception.
 
