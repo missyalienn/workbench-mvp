@@ -55,7 +55,7 @@ def embed_query(
     query = _truncate_text(ranking_input.query, settings.MAX_EMBED_TEXT_CHARS)
     if not query.strip():
         raise EmbeddingError("Query text is empty after truncation")
-    return embedder.get_or_create_embedding(query)
+    return embedder.embed(query)
 
 
 def rank_candidates(
@@ -67,18 +67,23 @@ def rank_candidates(
     t0 = time.monotonic()
     logger.info("ranking.start", n_candidates=len(ranking_input.candidates))
     query_vector, _ = query_embedding
-    scored: list[Post] = []
-    for candidate in ranking_input.candidates:
-        post_text = _truncate_text(
+
+    post_texts = [
+        _truncate_text(
             f"{candidate.cleaned_title}\n\n{candidate.cleaned_body}",
             settings.MAX_EMBED_TEXT_CHARS,
         )
-        try:
-            post_vector, _ = embedder.get_or_create_embedding(post_text)
-            score = cosine_similarity(query_vector, post_vector)
-        except EmbeddingError as exc:
-            logger.warning("ranking.embedding_failed", post_id=candidate.raw_post.get("id"), error=str(exc))
+        for candidate in ranking_input.candidates
+    ]
+
+    post_vectors = embedder.embed_texts(post_texts)
+
+    scored: list[Post] = []
+    for candidate, vector in zip(ranking_input.candidates, post_vectors):
+        if vector is None:
             score = 0.0
+        else:
+            score = cosine_similarity(query_vector, vector)
 
         scored.append(
             build_post_model(

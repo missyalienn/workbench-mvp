@@ -27,10 +27,19 @@ class DummyEmbedder:
         self._vectors = vectors
         self._fail_texts = fail_texts or set()
 
-    def get_or_create_embedding(self, text: str):
+    def embed(self, text: str):
         if text in self._fail_texts:
             raise EmbeddingError("fail")
         return self._vectors[text], len(self._vectors[text])
+
+    def embed_texts(self, texts: list[str]) -> list[list[float] | None]:
+        results = []
+        for text in texts:
+            if text in self._fail_texts:
+                results.append(None)
+            else:
+                results.append(self._vectors[text])
+        return results
 
 
 def _make_candidate(post_id: str, title: str, body: str):
@@ -61,9 +70,9 @@ def test_rank_candidates_scoring() -> None:
     query_embedding = embed_query(ranking_input, embedder)
     scored = rank_candidates(ranking_input, query_embedding, embedder)
 
-    scores = [post.relevance_score for post in scored]
-    assert scores[0] == pytest.approx(cosine_similarity([1.0, 0.0], [1.0, 0.0]))
-    assert scores[1] == pytest.approx(cosine_similarity([1.0, 0.0], [0.0, 1.0]))
+    scores = {post.id: post.relevance_score for post in scored}
+    assert scores["1"] == pytest.approx(cosine_similarity([1.0, 0.0], [1.0, 0.0]))
+    assert scores["2"] == pytest.approx(cosine_similarity([1.0, 0.0], [0.0, 1.0]))
 
 
 def test_rank_candidates_post_embedding_failure() -> None:
@@ -81,6 +90,7 @@ def test_rank_candidates_post_embedding_failure() -> None:
     scored = rank_candidates(ranking_input, query_embedding, embedder)
 
     assert scored[0].relevance_score == 0.0
+
 
 
 def test_embed_query_failure() -> None:
