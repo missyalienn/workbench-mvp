@@ -41,7 +41,7 @@ class OpenAILLMClient(LLMClient):
             )
 
         except ValidationError as e:
-            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type="LLMStructuredOutputError")
+            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
             raise LLMStructuredOutputError(
                 "OpenAI response failed schema validation",
                 details={"model": self._model, "exc_type": type(e).__name__},
@@ -49,7 +49,7 @@ class OpenAILLMClient(LLMClient):
             ) from e
 
         except Exception as e:
-            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type="LLMTransportError")
+            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
             raise LLMTransportError(
                 "Failed to call OpenAI Responses API",
                 details={"model": self._model, "exc_type": type(e).__name__},

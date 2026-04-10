@@ -102,10 +102,6 @@ def _run_pipeline(
     summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
     prompt_version = cfg.get("prompt_version", "v3")
-    allow_llm = cfg.get("allow_llm", False)
-    if not allow_llm:
-        raise RuntimeError("LLM calls disabled (allow_llm=false).")
-
     t0 = time.monotonic()
     logger.info(
         "pipeline.start",

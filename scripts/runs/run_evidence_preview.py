@@ -161,13 +161,6 @@ def main(
     summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
     prompt_version = cfg.get("prompt_version", "v3")
-    allow_llm = cfg.get("allow_llm", False)
-    if mode != "fixture_only" and not allow_llm:
-        logger.warning(
-            "LLM calls disabled (allow_llm=false); forcing fixture_only mode."
-        )
-        mode = "fixture_only"
-
     client = get_openai_client(environment=openai_env)
     llm_client = OpenAILLMClient(client=client, model=summarizer_model)
 
