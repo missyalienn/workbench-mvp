@@ -48,9 +48,10 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         type=VALIDATION_ERROR,
         title="Validation error",
         status=422,
-        detail=str(exc),
+        detail="Request body failed validation.",
         instance=str(request.url.path),
         trace_id=_trace_id(request),
+        errors=exc.errors(),
     )
 
 

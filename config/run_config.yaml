@@ -21,7 +21,7 @@ openai_environment: "openai-dev"
 planner_model: "gpt-4.1-mini"
 summarizer_model: "gpt-4.1-mini"
 
-max_posts: 5
+max_posts: 8
 max_comments_per_post: 5
 max_post_chars: 1200
 max_comment_chars: 400

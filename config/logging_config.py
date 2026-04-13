@@ -72,7 +72,7 @@ def get_logger(name: str) -> structlog.BoundLogger:
 @contextmanager
 def plan_context_scope(plan_id: str):
     """Bind plan_id to all log lines emitted within this context."""
-    bind_contextvars(plan_id=plan_id)
+    bind_contextvars(plan_id=plan_id[:8])
     try:
         yield
     finally:

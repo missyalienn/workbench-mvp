@@ -36,6 +36,7 @@ class ProblemDetail(BaseModel):
     detail: str
     instance: str
     trace_id: str | None = None
+    errors: list[dict] | None = None
 
 
 def problem_response(
@@ -46,6 +47,7 @@ def problem_response(
     detail: str,
     instance: str,
     trace_id: str | None = None,
+    errors: list[dict] | None = None,
 ) -> JSONResponse:
     """Return an application/problem+json response."""
     body = ProblemDetail(
@@ -55,6 +57,7 @@ def problem_response(
         detail=detail,
         instance=instance,
         trace_id=trace_id,
+        errors=errors,
     )
     return JSONResponse(
         status_code=status,
