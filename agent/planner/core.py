@@ -8,11 +8,10 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from .errors import PlannerError
 from .model import SearchPlan
 from .prompt_templates import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from config.logging_config import get_logger, plan_context_scope
-from agent.clients.openai_client import get_openai_client
+from agent.clients.openai_client import get_openai_client, translate_openai_error
 
 logger = get_logger(__name__)
 
@@ -74,13 +73,14 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
                     {"role": "user", "content": user_message},
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.7,
+                temperature=0,
             )
 
             # Parse LLM response
             raw_content = response.choices[0].message.content
             if raw_content is None:
-                raise PlannerError("LLM returned no content")
+                logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error="OpenAI returned no content")
+                raise InvalidResponseError("OpenAI returned no content")
             logger.debug("planner.llm_response_received", raw_content=raw_content)
 
             response_dict = json.loads(raw_content)
@@ -96,12 +96,6 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
 
             return plan
 
-        except json.JSONDecodeError as e:
-            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
-            raise PlannerError("LLM returned invalid JSON", cause=e) from e
-        except ValidationError as e:
-            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
-            raise PlannerError("Planner response did not match SearchPlan schema", cause=e) from e
         except Exception as e:
             logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
-            raise PlannerError("Planner LLM request failed", cause=e) from e
+            raise translate_openai_error(e) from e
