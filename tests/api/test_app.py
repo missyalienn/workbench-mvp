@@ -7,17 +7,18 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from agent.planner.errors import PlannerError
 from api.app import app
 from api.errors import (
-    INTERNAL_ERROR,
-    INVALID_REQUEST,
-    SYNTHESIS_CONTRACT_FAILURE,
-    UPSTREAM_FAILURE,
+    EXTERNAL_SERVICE_FAILURE,
+    INTERNAL_SERVER_ERROR,
     VALIDATION_ERROR,
 )
-from services.reddit_client.session import RedditAuthError
-from services.synthesizer.llm_execution.errors import LLMStructuredOutputError, LLMTransportError
+from common.exceptions import (
+    AuthError,
+    ExternalTimeoutError,
+    InvalidResponseError,
+    RateLimitError,
+)
 
 _PIPELINE = "api.app.run_evidence_pipeline"
 
@@ -28,11 +29,11 @@ client = TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.mark.parametrize("exc,expected_status,expected_type", [
-    (PlannerError("planner failed"),          502, UPSTREAM_FAILURE),
-    (LLMTransportError("transport failed"),   502, UPSTREAM_FAILURE),
-    (RedditAuthError("reddit auth failed"),   502, UPSTREAM_FAILURE),
-    (LLMStructuredOutputError("bad schema"),  500, SYNTHESIS_CONTRACT_FAILURE),
-    (RuntimeError("unexpected"),              500, INTERNAL_ERROR),
+    (AuthError("auth failed"),                  502, EXTERNAL_SERVICE_FAILURE),
+    (RateLimitError("rate limited"),            502, EXTERNAL_SERVICE_FAILURE),
+    (ExternalTimeoutError("timed out"),         502, EXTERNAL_SERVICE_FAILURE),
+    (InvalidResponseError("bad response"),      502, EXTERNAL_SERVICE_FAILURE),
+    (RuntimeError("unexpected"),                500, INTERNAL_SERVER_ERROR),
 ])
 def test_exception_maps_to_correct_status_and_type(
     exc: Exception, expected_status: int, expected_type: str
@@ -50,10 +51,10 @@ def test_exception_maps_to_correct_status_and_type(
 
 
 @pytest.mark.parametrize("exc", [
-    PlannerError("x"),
-    LLMTransportError("x"),
-    RedditAuthError("x"),
-    LLMStructuredOutputError("x"),
+    AuthError("x"),
+    RateLimitError("x"),
+    ExternalTimeoutError("x"),
+    InvalidResponseError("x"),
     RuntimeError("x"),
 ])
 def test_error_response_content_type(exc: Exception) -> None:
@@ -63,14 +64,28 @@ def test_error_response_content_type(exc: Exception) -> None:
     assert "application/problem+json" in response.headers["content-type"]
 
 
-# --- Route-level guards ---
+# --- Detail strings are generic, not internal exception messages ---
 
 
-def test_blank_query_returns_400() -> None:
+@pytest.mark.parametrize("exc", [
+    AuthError("sensitive internal detail"),
+    RuntimeError("sensitive internal detail"),
+])
+def test_error_detail_does_not_leak_internal_message(exc: Exception) -> None:
+    with patch(_PIPELINE, side_effect=exc):
+        response = client.post("/api/run", json={"query": "valid query"})
+
+    assert "sensitive internal detail" not in response.json()["detail"]
+
+
+# --- Request validation ---
+
+
+def test_blank_query_returns_422() -> None:
     response = client.post("/api/run", json={"query": "   "})
-    assert response.status_code == 400
+    assert response.status_code == 422
     body = response.json()
-    assert body["type"] == INVALID_REQUEST
+    assert body["type"] == VALIDATION_ERROR
     assert "application/problem+json" in response.headers["content-type"]
 
 

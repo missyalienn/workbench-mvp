@@ -17,4 +17,5 @@ def test_get_openai_client_raises_without_credentials(monkeypatch: pytest.Monkey
     with pytest.raises(RuntimeError) as excinfo:
         get_openai_client(environment="test-env")
 
-    assert "Missing OpenAI credentials" in str(excinfo.value)
+    assert "Missing OpenAI API key in keyring" in str(excinfo.value)
+    assert "test-env" in str(excinfo.value)
