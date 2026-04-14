@@ -11,6 +11,7 @@ import requests
 from requests import Session
 from requests.auth import HTTPBasicAuth
 
+from common.exceptions import AuthError
 from config.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -22,10 +23,6 @@ CLIENT_SECRET_SERVICE = os.getenv("REDDIT_CLIENT_SECRET_SERVICE", "reddit-client
 USER_AGENT_SERVICE = os.getenv("REDDIT_USER_AGENT_SERVICE", "reddit-user-agent")
 KEYCHAIN_LABEL = os.getenv("REDDIT_KEYCHAIN_LABEL", "reddit-dev")
 DEFAULT_USER_AGENT = os.getenv("REDDIT_USER_AGENT", "Workbench/1.0 by /u/chippetto90")
-
-
-class RedditAuthError(RuntimeError):
-    """Raised when Reddit authentication fails. Extends RuntimeError."""
 
 class RedditSession:
     """
@@ -87,13 +84,13 @@ class RedditSession:
             )
             response.raise_for_status()
         except Exception as exc:
-            raise RedditAuthError(f"Failed to fetch token: {exc}") from exc
+            raise AuthError(f"Failed to fetch token: {exc}") from exc
 
         data = response.json()
         access_token = data.get("access_token")
         expires_in = int(data.get("expires_in", 3600))
         if not access_token:
-            raise RedditAuthError(f"Missing access_token in response: {data}")
+            raise AuthError(f"Missing access_token in response: {data}")
 
         self._token = access_token
         self._token_expiry = datetime.now(timezone.utc) + timedelta(
@@ -118,8 +115,14 @@ class RedditSession:
         user_agent = keyring.get_password(user_agent_service, label) or DEFAULT_USER_AGENT
 
         if not client_id or not client_secret:
-            raise RedditAuthError(
-                f"Missing Reddit credentials in keychain (label={label})"
+            logger.error(
+                "reddit.missing_credentials",
+                label=label,
+                fix="Run: keyring set reddit-client-id <label> <id> && keyring set reddit-client-secret <label> <secret>",
+            )
+            raise AuthError(
+                f"Missing Reddit API credentials in keychain (label='{label}'). "
+                f"Fix: keyring set reddit-client-id {label} <id> && keyring set reddit-client-secret {label} <secret>"
             )
 
         return cls(
