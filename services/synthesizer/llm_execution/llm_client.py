@@ -9,12 +9,12 @@ from __future__ import annotations
 import time
 
 from openai import OpenAI
-from pydantic import ValidationError
 
+from agent.clients.openai_client import translate_openai_error
 from config.logging_config import get_logger
+from common.exceptions import InvalidResponseError
 from services.synthesizer.models import EvidenceResult
 
-from .errors import LLMStructuredOutputError, LLMTransportError
 from .types import LLMClient, PromptMessage
 
 logger = get_logger(__name__)
@@ -40,29 +40,14 @@ class OpenAILLMClient(LLMClient):
                 text_format=EvidenceResult,
             )
 
-        except ValidationError as e:
-            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type="LLMStructuredOutputError")
-            raise LLMStructuredOutputError(
-                "OpenAI response failed schema validation",
-                details={"model": self._model, "exc_type": type(e).__name__},
-                cause=e,
-            ) from e
-
         except Exception as e:
-            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type="LLMTransportError")
-            raise LLMTransportError(
-                "Failed to call OpenAI Responses API",
-                details={"model": self._model, "exc_type": type(e).__name__},
-                cause=e,
-            ) from e
+            logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
+            raise translate_openai_error(e) from e
 
         parsed = response.output_parsed
         if parsed is None:
             logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error="output_parsed is None")
-            raise LLMStructuredOutputError(
-                "OpenAI response did not return a parsed CurationResult",
-                details={"model": self._model},
-            )
+            raise InvalidResponseError("OpenAI returned no parsed output")
 
         logger.info("synthesizer.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), status=parsed.status, n_threads=len(parsed.threads) if parsed.threads else 0)
         return parsed

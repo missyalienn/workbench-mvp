@@ -6,12 +6,12 @@ from typing import Any
 
 from agent.clients.openai_client import get_openai_client
 from agent.planner.model import SearchPlan
+from common.exceptions import ExternalTimeoutError, RateLimitError, InvalidResponseError
 from config.logging_config import get_logger
 from config.settings import settings
 from services.embedding.client import EmbeddingClient, EmbeddingError
 from services.embedding.ranking import RankingInput, embed_query, rank_candidates, zero_score_posts
 from services.embedding.store_factory import get_vector_store
-import requests
 from services.reddit_client import RedditClient
 
 from .comment_pipeline import filter_comments
@@ -103,9 +103,8 @@ def _fetch_posts_for_pair(
 
             try:
                 raw_comments = reddit_client.fetch_comments(post_id=post_id)
-            except requests.exceptions.RequestException as exc:
-                status_code = getattr(getattr(exc, "response", None), "status_code", None)
-                logger.warning("fetch.request_failed", context="comments", post_id=post_id, status_code=status_code, error=str(exc))
+            except (ExternalTimeoutError, RateLimitError, InvalidResponseError) as exc:
+                logger.warning("fetch.request_failed", context="comments", post_id=post_id, exc_type=type(exc).__name__, error=str(exc))
                 continue
 
             filtered_comments = filter_comments(
@@ -128,9 +127,8 @@ def _fetch_posts_for_pair(
                     fetched_at=fetched_at,
                 )
             )
-    except requests.exceptions.RequestException as exc:
-        status_code = getattr(getattr(exc, "response", None), "status_code", None)
-        logger.warning("fetch.request_failed", context="search", subreddit=subreddit, term=term, status_code=status_code, error=str(exc))
+    except (ExternalTimeoutError, RateLimitError, InvalidResponseError) as exc:
+        logger.warning("fetch.request_failed", context="search", subreddit=subreddit, term=term, exc_type=type(exc).__name__, error=str(exc))
     return candidates
 
 

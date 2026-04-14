@@ -6,10 +6,12 @@ import json
 import time
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from .model import SearchPlan
 from .prompt_templates import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from config.logging_config import get_logger, plan_context_scope
-from agent.clients.openai_client import get_openai_client
+from agent.clients.openai_client import get_openai_client, translate_openai_error
 
 logger = get_logger(__name__)
 
@@ -26,7 +28,7 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
 
     Raises:
         ValueError: If user_query is empty or invalid
-        RuntimeError: If LLM call fails or returns invalid structure
+        PlannerError: If the LLM call fails or returns invalid structure
 
     Implementation:
     - Generate unique plan_id using uuid.uuid4()
@@ -49,6 +51,9 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
     plan_id = uuid4()
     plan_id_str = str(plan_id)
 
+    # Credential failure escapes unwrapped — config error, not a planner failure
+    client = get_openai_client()
+
     # Wrap all operations in plan_id context for traceability
     with plan_context_scope(plan_id_str):
         t0 = time.monotonic()
@@ -56,9 +61,6 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
         logger.debug("planner.plan_id_generated", plan_id=plan_id_str)
 
         try:
-            # Get OpenAI client
-            client = get_openai_client()
-
             # Format user message
             user_message = USER_PROMPT_TEMPLATE.format(user_query=user_query)
 
@@ -71,13 +73,14 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
                     {"role": "user", "content": user_message},
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.7,
+                temperature=0,
             )
 
             # Parse LLM response
             raw_content = response.choices[0].message.content
             if raw_content is None:
-                raise RuntimeError("No content returned from LLM")
+                logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error="OpenAI returned no content")
+                raise InvalidResponseError("OpenAI returned no content")
             logger.debug("planner.llm_response_received", raw_content=raw_content)
 
             response_dict = json.loads(raw_content)
@@ -93,9 +96,6 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
 
             return plan
 
-        except json.JSONDecodeError as e:
-            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e))
-            raise RuntimeError(f"Invalid JSON response from LLM: {e}") from e
         except Exception as e:
-            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e))
-            raise RuntimeError(f"Search plan generation failed: {e}") from e
+            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
+            raise translate_openai_error(e) from e

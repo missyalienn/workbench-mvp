@@ -1,84 +1,59 @@
 ## Workbench
 
-**Workbench** is a research agent that performs evidence retrieval, selection, and grounding for a user query.
+**Workbench** is a research agent that takes a research task and returns grounded findings — ranked evidence from primary sources, structured limitations, and citations that let you verify claims directly.
 
-This repo currently applies the system to DIY and home improvement, but the same architecture can be adapted to enterprise knowledge bases or other domains by swapping data sources.
+The architecture is source-agnostic: the core pipeline is independent of any specific data source or domain. The current implementation uses Reddit as a data source applied to DIY and home improvement queries.
 
 ---
 
 ## How It Works
 
-Workbench follows a structured evidence pipeline that keeps the core use case independent of any specific data source or framework.
+Workbench follows a structured evidence pipeline:
 
-**Evidence Pipeline:**
-1. **Planner** generates a structured search plan from the user query.  
-2. **Evidence retrieval** gathers candidate items from one or more sources.  
-3. **Validation + scoring** filters, normalizes, and ranks evidence.  
-4. **Evidence selection + grounding** builds an LLM-ready request with source attribution.  
-5. The **LLM execution layer** returns structured evidence output with ranked sources and limitations.
-
----
-
-### Architecture Overview
-
-- **Planner** – Produces structured search plans from a query.  
-- **Evidence retrieval** – Collects candidate items from source-specific adapters.  
-- **Validation + scoring** – Applies quality rules, deduping, and relevance scoring.  
-- **Evidence selection + grounding** – Builds an LLM-ready request with source attribution.  
-- **LLM execution** – Produces a structured, grounded evidence result.  
-- **Models** – Data contracts used across the pipeline.  
-- **Scripts** – CLI tools for smoke tests and preview runs.  
-- **Docs** – Architecture notes and refactor plans.
-
----
-
-## DIY/Home Improvement Application
-
-Example user queries:  
-> “How do I hang floating shelves?”  
-> “How do I unblock a shower drain?”
-
-Current implementation details:
-- Data source: Reddit  
-- Planner: OpenAI Completions  
-- Grounded evidence output: OpenAI Responses API
-
-The DIY space can be overwhelming, with a hundred different ways to do one thing.
-
-Workbench cuts through the noise and surfaces relevant, community-sourced evidence so you can check sources directly.
+1. **Planner** generates a structured search plan from the user query.
+2. **Evidence retrieval** gathers and validates candidate items from a data source.
+3. **Semantic ranking** scores candidates by embedding similarity against the query; falls back to signal-based ordering on failure.
+4. **Context building** selects top evidence and assembles an LLM-ready request with source attribution.
+5. **LLM execution** returns structured evidence output with ranked sources and limitations.
 
 ---
 
 ## Output Contract
 
-The system returns a structured **EvidenceResult** (name pending) with:
-- `status`: ok | partial | error
-- `threads`: ranked evidence items with source URLs/IDs
-- `limitations`: brief coverage or relevance caveats
-- `prompt_version`: request/contract version
+The system returns a structured **EvidenceResult**:
+- `status`: research quality signal (`ok | partial | error`) — reflects evidence sufficiency, not system health
+- `threads`: ranked evidence items with source URLs
+- `limitations`: coverage or relevance caveats
+- `prompt_version`: prompt template version used for this run
 
 ---
 
 ## Project Structure
 
-- **`services/fetch/`** – Evidence collection, filtering, validation, and scoring logic.  
-- **`services/summarizer/`** – Selection, prompt building, LLM execution, and structured output contracts.  
-- **`agent/planner/`** – Query planning logic and models.  
-- **`scripts/`** – CLI smoke test and preview tools.  
-- **`docs/`** – Architecture notes and refactor plans.
+- **`agent/planner/`** – Query planning logic and models.
+- **`services/fetch/`** – Evidence collection, filtering, and validation.
+- **`services/embedding/`** – Semantic ranking via OpenAI embeddings with SQLite cache.
+- **`services/context_builder/`** – Evidence selection and LLM context assembly.
+- **`services/synthesizer/`** – Prompt building, LLM execution, and output contracts.
+- **`api/`** – FastAPI app and pipeline orchestration.
+- **`frontend/`** – React demo UI.
+- **`scripts/`** – CLI pipeline preview and eval tools.
+- **`docs/`** – Architecture notes and design docs.
 
 ---
 
 ## Current Capabilities
 
-- Modular evidence pipeline with isolated planning, retrieval, validation, and selection layers.  
-- LLM execution layer that returns structured evidence output with source attribution.  
-- CLI smoke test that writes preview JSON artifacts for inspection.
+- Modular evidence pipeline with isolated planning, retrieval, validation, and selection layers.
+- Semantic ranking via embedding similarity with graceful fallback to signal-based ordering.
+- Structured output contract with ranked sources and evidence quality signaling.
+- FastAPI backend with a React frontend demo.
 
 ---
 
 ## Upcoming Work
 
-- Dependency inversion + explicit use-case boundary for the end-to-end flow.  
-- Unit and integration tests  
-- Streamlit demo layer
+- Multi-source evidence retrieval.
+- Production-grade error handling at the API boundary.
+- Embedding call batching to reduce per-request latency.
+- Deployment preparation.

@@ -23,10 +23,7 @@ from agent.planner.core import create_search_plan
 from config.logging_config import get_logger
 from services.fetch.reddit_fetcher import run_reddit_fetcher
 from services.synthesizer.config import EvidenceOutputConfig
-from services.synthesizer.llm_execution.errors import (
-    LLMStructuredOutputError,
-    LLMTransportError,
-)
+from common.exceptions import ExternalServiceError
 from services.synthesizer.llm_execution.llm_client import OpenAILLMClient
 from services.synthesizer.llm_execution.prompt_builder import build_messages
 from services.synthesizer.llm_execution.types import PromptMessage
@@ -161,13 +158,6 @@ def main(
     summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
     prompt_version = cfg.get("prompt_version", "v3")
-    allow_llm = cfg.get("allow_llm", False)
-    if mode != "fixture_only" and not allow_llm:
-        logger.warning(
-            "LLM calls disabled (allow_llm=false); forcing fixture_only mode."
-        )
-        mode = "fixture_only"
-
     client = get_openai_client(environment=openai_env)
     llm_client = OpenAILLMClient(client=client, model=summarizer_model)
 
@@ -307,35 +297,13 @@ def main(
             llm_ms = int((time.perf_counter() - llm_start) * 1000)
             record["curation_result"] = result.model_dump(mode="json")
             record["meta"]["timing_ms"]["llm_ms"] = llm_ms
-        except LLMStructuredOutputError as exc:
+        except ExternalServiceError as exc:
             logger.error(
-                "LLM structured output error (plan_id=%s, query=%s): %s details=%s cause=%s",
+                "LLM error (plan_id=%s, query=%s): %s cause=%s",
                 plan.plan_id if plan else None,
                 query_text,
                 str(exc),
-                exc.details,
-                repr(exc.cause) if exc.cause else None,
-            )
-            llm_error_occurred = True
-            record.update(
-                {
-                    "status": "parse_failed",
-                    "error": {
-                        "exc_type": type(exc).__name__,
-                        "message": str(exc),
-                        "details": exc.details,
-                        "cause": repr(exc.cause) if exc.cause else None,
-                    },
-                }
-            )
-        except LLMTransportError as exc:
-            logger.error(
-                "LLM transport error (plan_id=%s, query=%s): %s details=%s cause=%s",
-                plan.plan_id if plan else None,
-                query_text,
-                str(exc),
-                exc.details,
-                repr(exc.cause) if exc.cause else None,
+                repr(exc.__cause__) if exc.__cause__ else None,
             )
             llm_error_occurred = True
             record.update(
@@ -344,8 +312,7 @@ def main(
                     "error": {
                         "exc_type": type(exc).__name__,
                         "message": str(exc),
-                        "details": exc.details,
-                        "cause": repr(exc.cause) if exc.cause else None,
+                        "cause": repr(exc.__cause__) if exc.__cause__ else None,
                     },
                 }
             )

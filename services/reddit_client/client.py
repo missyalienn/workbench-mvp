@@ -5,10 +5,23 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
+import requests
 from requests import Session
 
+from common.exceptions import ExternalTimeoutError, RateLimitError, InvalidResponseError
 from .endpoints import fetch_comments, paginate_search, search_subreddit
 from .session import RedditSession
+
+
+def _translate(exc: requests.exceptions.RequestException) -> ExternalTimeoutError | RateLimitError | InvalidResponseError:
+    """Translate an exhausted-retry requests exception to a typed ExternalServiceError."""
+    if isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)):
+        return ExternalTimeoutError(str(exc))
+    if isinstance(exc, requests.exceptions.HTTPError):
+        status = exc.response.status_code if exc.response is not None else None
+        if status == 429:
+            return RateLimitError(str(exc))
+    return InvalidResponseError(str(exc))
 
 
 class RedditClient:
@@ -36,13 +49,16 @@ class RedditClient:
         after: str | None = None,
     ) -> dict[str, Any]:
         """Call Reddit's search endpoint via the managed session."""
-        return search_subreddit(
-            self.session(),
-            subreddit=subreddit,
-            query=query,
-            limit=limit,
-            after=after,
-        )
+        try:
+            return search_subreddit(
+                self.session(),
+                subreddit=subreddit,
+                query=query,
+                limit=limit,
+                after=after,
+            )
+        except requests.exceptions.RequestException as exc:
+            raise _translate(exc) from exc
 
     def paginate_search(
         self,
@@ -52,12 +68,15 @@ class RedditClient:
         limit: int,
     ) -> Iterator[dict[str, Any]]:
         """Iterate through subreddit search results with automatic paging."""
-        return paginate_search(
-            self.session(),
-            subreddit=subreddit,
-            query=query,
-            limit=limit,
-        )
+        try:
+            yield from paginate_search(
+                self.session(),
+                subreddit=subreddit,
+                query=query,
+                limit=limit,
+            )
+        except requests.exceptions.RequestException as exc:
+            raise _translate(exc) from exc
 
     def fetch_comments(
         self,
@@ -66,11 +85,14 @@ class RedditClient:
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Fetch top-level comments for a post via the managed session."""
-        return fetch_comments(
-            self.session(),
-            post_id=post_id,
-            limit=limit,
-        )
+        try:
+            return fetch_comments(
+                self.session(),
+                post_id=post_id,
+                limit=limit,
+            )
+        except requests.exceptions.RequestException as exc:
+            raise _translate(exc) from exc
 
     # --------------------------------------------------------------------
 

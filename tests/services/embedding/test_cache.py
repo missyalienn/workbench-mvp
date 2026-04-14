@@ -25,9 +25,3 @@ def test_cache_round_trip(tmp_path) -> None:
     assert dims == len(vector)
     # Stored as float32, so allow minor rounding differences on round-trip.
     assert loaded_vector == pytest.approx(vector)
-
-
-#Issue: First run failed because the test compared floats for exact equality. 
-# The cache stores vectors as float32, so values round slightly (e.g., 0.1 becomes 0.10000000149). 
-# Exact equality fails.
-# Fix: use approximate comparison in the test (pytest.approx) so float32 round‑trip differences are accepted.
