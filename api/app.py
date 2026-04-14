@@ -1,25 +1,29 @@
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
-from agent.planner.errors import PlannerError
 from api.errors import (
-    INTERNAL_ERROR,
-    INVALID_REQUEST,
-    SYNTHESIS_CONTRACT_FAILURE,
-    UPSTREAM_FAILURE,
+    EXTERNAL_SERVICE_FAILURE,
+    INTERNAL_SERVER_ERROR,
     VALIDATION_ERROR,
+    DETAIL_EXTERNAL_SERVICE_FAILURE,
+    DETAIL_INTERNAL_SERVER_ERROR,
+    DETAIL_VALIDATION_ERROR,
     ProblemDetail,
     problem_response,
 )
 from api.pipeline import run_evidence_pipeline
-from services.reddit_client.session import RedditAuthError
-from services.synthesizer.llm_execution.errors import LLMStructuredOutputError, LLMTransportError
+from common.exceptions import ExternalServiceError
+from config.logging_config import configure_logging, get_logger
 
 # To start the FastAPI app, run:
 # uvicorn api.app:app --reload
+
+configure_logging()
+logger = get_logger(__name__)
 
 app = FastAPI()
 app.add_middleware(
@@ -33,6 +37,13 @@ app.add_middleware(
 
 class QueryRequest(BaseModel):
     query: str
+
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Query must not be blank or whitespace.")
+        return v
 
 
 def _trace_id(request: Request) -> str | None:
@@ -48,56 +59,27 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         type=VALIDATION_ERROR,
         title="Validation error",
         status=422,
-        detail="Request body failed validation.",
+        detail=DETAIL_VALIDATION_ERROR,
         instance=str(request.url.path),
         trace_id=_trace_id(request),
-        errors=exc.errors(),
+        errors=jsonable_encoder(exc.errors()),
     )
 
 
-@app.exception_handler(LLMStructuredOutputError)
-async def synthesis_contract_failure_handler(request: Request, exc: LLMStructuredOutputError) -> JSONResponse:
-    return problem_response(
-        type=SYNTHESIS_CONTRACT_FAILURE,
-        title="Synthesis contract failure",
-        status=500,
-        detail=str(exc),
-        instance=str(request.url.path),
+@app.exception_handler(ExternalServiceError)
+async def external_service_error_handler(request: Request, exc: ExternalServiceError) -> JSONResponse:
+    logger.warning(
+        "api.external_service_failure",
+        exc_type=type(exc).__name__,
+        exc=str(exc),
+        path=str(request.url.path),
         trace_id=_trace_id(request),
     )
-
-
-@app.exception_handler(PlannerError)
-async def planner_error_handler(request: Request, exc: PlannerError) -> JSONResponse:
     return problem_response(
-        type=UPSTREAM_FAILURE,
-        title="Upstream failure",
+        type=EXTERNAL_SERVICE_FAILURE,
+        title="External service failure",
         status=502,
-        detail=str(exc),
-        instance=str(request.url.path),
-        trace_id=_trace_id(request),
-    )
-
-
-@app.exception_handler(LLMTransportError)
-async def llm_transport_error_handler(request: Request, exc: LLMTransportError) -> JSONResponse:
-    return problem_response(
-        type=UPSTREAM_FAILURE,
-        title="Upstream failure",
-        status=502,
-        detail=str(exc),
-        instance=str(request.url.path),
-        trace_id=_trace_id(request),
-    )
-
-
-@app.exception_handler(RedditAuthError)
-async def reddit_auth_error_handler(request: Request, exc: RedditAuthError) -> JSONResponse:
-    return problem_response(
-        type=UPSTREAM_FAILURE,
-        title="Upstream failure",
-        status=502,
-        detail=str(exc),
+        detail=DETAIL_EXTERNAL_SERVICE_FAILURE,
         instance=str(request.url.path),
         trace_id=_trace_id(request),
     )
@@ -105,11 +87,18 @@ async def reddit_auth_error_handler(request: Request, exc: RedditAuthError) -> J
 
 @app.exception_handler(Exception)
 async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception(
+        "api.unhandled_exception",
+        exc_type=type(exc).__name__,
+        exc=str(exc),
+        path=str(request.url.path),
+        trace_id=_trace_id(request),
+    )
     return problem_response(
-        type=INTERNAL_ERROR,
+        type=INTERNAL_SERVER_ERROR,
         title="Internal server error",
         status=500,
-        detail="An unexpected error occurred.",
+        detail=DETAIL_INTERNAL_SERVER_ERROR,
         instance=str(request.url.path),
         trace_id=_trace_id(request),
     )
@@ -126,20 +115,10 @@ def read_root():
 @app.post(
     "/api/run",
     responses={
-        400: {"model": ProblemDetail, "description": "Blank or whitespace query"},
         422: {"model": ProblemDetail, "description": "Request validation error"},
-        500: {"model": ProblemDetail, "description": "Internal server error or synthesis contract failure"},
-        502: {"model": ProblemDetail, "description": "Upstream failure (planner, LLM transport, or Reddit auth)"},
+        500: {"model": ProblemDetail, "description": "Internal server error"},
+        502: {"model": ProblemDetail, "description": "External service failure"},
     },
 )
 def run(body: QueryRequest, request: Request):
-    if not body.query.strip():
-        return problem_response(
-            type=INVALID_REQUEST,
-            title="Invalid request",
-            status=400,
-            detail="Query must not be blank or whitespace.",
-            instance=str(request.url.path),
-            trace_id=_trace_id(request),
-        )
     return run_evidence_pipeline(body.query)

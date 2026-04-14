@@ -11,11 +11,14 @@ from pydantic import BaseModel
 
 
 # Problem type URIs
-INVALID_REQUEST = "/problems/invalid-request"
 VALIDATION_ERROR = "/problems/validation-error"
-SYNTHESIS_CONTRACT_FAILURE = "/problems/synthesis-contract-failure"
-UPSTREAM_FAILURE = "/problems/upstream-failure"
-INTERNAL_ERROR = "/problems/internal-error"
+EXTERNAL_SERVICE_FAILURE = "/problems/external-service-failure"
+INTERNAL_SERVER_ERROR = "/problems/internal-server-error"
+
+# Response detail strings — use these constants in handlers, not inline literals
+DETAIL_VALIDATION_ERROR = "Request body failed validation."
+DETAIL_EXTERNAL_SERVICE_FAILURE = "An external service failed to fulfill the request."
+DETAIL_INTERNAL_SERVER_ERROR = "An unexpected error occurred."
 
 
 class ProblemDetail(BaseModel):
