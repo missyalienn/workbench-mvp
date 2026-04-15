@@ -45,6 +45,32 @@ class Settings(BaseSettings):
     )    
   
 
+    # External APIs
+    SOCRATA_APP_TOKEN: str | None = Field(
+        None,
+        validation_alias="SOCRATA_APP_TOKEN",
+        description="Optional Socrata app token for NYC OpenData API — avoids rate limits.",
+    )
+
+    # LLM Models
+    PLANNER_MODEL: str = Field(
+        "gpt-4.1-mini",
+        validation_alias="PLANNER_MODEL",
+        description="Model used by the query planner.",
+    )
+    SUMMARIZER_MODEL: str = Field(
+        "gpt-4.1-mini",
+        validation_alias="SUMMARIZER_MODEL",
+        description="Model used by the synthesizer/summarizer.",
+    )
+
+    # Fetcher
+    FETCHER_POST_LIMIT: int = Field(
+        10,
+        validation_alias="FETCHER_POST_LIMIT",
+        description="Maximum number of Reddit posts to fetch per run.",
+    )
+
     # Agent Planner Defaults
     ALLOWED_SUBREDDITS: list[str] = [
         "diy",
