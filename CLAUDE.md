@@ -2,9 +2,9 @@
 > Extends ~/.claude/CLAUDE.md. Do not repeat global rules here.
 
 ## Stack
-- Language: Python 3.11+
+- Language: Python 3.12+
 - Framework: FastAPI
-- Package manager: pip / requirements.txt
+- Package manager: uv / pyproject.toml
 - Test runner: pytest
 - Linter / formatter: ruff, black
 - Type checker: mypy
