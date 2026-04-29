@@ -23,8 +23,6 @@ class SearchPlan(BaseModel):
     subreddits: list[str] = Field(
         description="List of subreddit names without 'r/' prefix (e.g., ['diy', 'homeimprovement'])"
     )
-    notes: str = Field(description="Brief reasoning or context about the search plan")
-
     @field_validator("subreddits")
     @classmethod
     def validate_subreddits(cls, subreddits: list[str]) -> list[str]:

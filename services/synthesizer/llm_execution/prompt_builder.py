@@ -47,16 +47,15 @@ def _build_system_content(request: EvidenceRequest) -> str:
 
 
 def _build_user_content(request: EvidenceRequest) -> str:
+    _EXCLUDE_FROM_PAYLOAD = {"post_karma", "num_comments", "matched_keywords"}
     payload = {
         "query": request.query,
         "prompt_version": request.prompt_version,
-        "constraints": {
-            "summary_char_budget": int(request.summary_char_budget),
-            "max_highlights": int(request.max_highlights),
-            "max_cautions": int(request.max_cautions),
-        },
         # Ensure JSON-safe values (e.g., HttpUrl -> str).
-        "post_payloads": [post.model_dump(mode="json") for post in request.post_payloads],
+        "post_payloads": [
+            post.model_dump(mode="json", exclude=_EXCLUDE_FROM_PAYLOAD)
+            for post in request.post_payloads
+        ],
     }
 
     # Compact JSON to reduce tokens.

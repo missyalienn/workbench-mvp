@@ -16,7 +16,6 @@ def _make_plan() -> SearchPlan:
         query="test query",
         search_terms=["test term"],
         subreddits=["diy"],
-        notes="unit test plan",
     )
 
 

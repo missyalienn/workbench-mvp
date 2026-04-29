@@ -149,7 +149,6 @@ def run_evidence_pipeline(
         "search_plan": {
             "search_terms": plan.search_terms,
             "subreddits": plan.subreddits,
-            "notes": plan.notes,
         },
         "evidence_result": result,
     }
@@ -175,7 +174,6 @@ def pipeline_stage_summary(
         "search_plan": {
             "search_terms": plan.search_terms,
             "subreddits": plan.subreddits,
-            "notes": plan.notes,
         },
         "fetch_result_summary": fetch_result_summary,
         "llm_context_summary": llm_context_summary,
