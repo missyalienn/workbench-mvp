@@ -233,3 +233,9 @@ z_archive/
 
 # Legacy sandbox (kept locally, untracked)
 z_legacy/
+
+# Local only — kept untracked
+.claude/
+docs/decisions/
+docs/design/langgraph-workbench-design.md
+docs/notes/langgraph_deep_research_reference.md

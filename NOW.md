@@ -1,15 +1,15 @@
 # NOW — workbench-mvp
 
 ## Current State
-- Core pipeline (planner → fetcher → ranking → context_builder → synthesizer) is working
-- Production hardening underway: typed failure semantics, error handling, no raw tracebacks to clients
-- `graph/` area appears to be in early development (DOB, permit, Reddit tools)
-- [FILL IN: what's currently broken or incomplete]
+- V1 pipeline (planner → fetcher → ranking → context_builder → synthesizer) is working
+- V2 LangGraph POC in progress on branch `feat/langgraph-poc`
+- Package manager migrated from pip/requirements.txt to uv/pyproject.toml
+- V2 scaffolding committed: prompts (scaffold), schemas, and state classes
 
 ## Last Decision
-[FILL IN: last significant decision made and why]
+Expanded V2 scope from 4 to 5 due diligence dimensions — added `zoning` as its own agent/dimension alongside permits, violations, liens, and ownership.
 
 ## Next Steps
-1. [FILL IN]
-2. [FILL IN]
-3. [FILL IN]
+1. #127 — Tool protocol interfaces: `MunicipalDataClient`, `GeocodingClient`, `GeocodingResult` (`graph/tools/interfaces/municipal.py`)
+2. #128 — Research and confirm NYC Open Data dataset IDs for all five dimensions
+3. #129 — Research and confirm NYC Planning Geosearch API endpoint and response contract

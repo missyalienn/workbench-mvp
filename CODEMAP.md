@@ -66,6 +66,10 @@ _One line per non-trivial file. Update when files are added or renamed. Skip __i
 - `llm_execution/prompt_builder.py` — builds synthesis prompt
 - `llm_execution/types.py` — LLM execution types
 
+## project root
+- `pyproject.toml` — dep declarations, project metadata, dev deps; replaces requirements.txt
+- `uv.lock` — generated lockfile; exact pins for all deps
+
 ## scripts/
 - `runs/` — dev/demo run scripts; not production code
 - `smoke/` — smoke tests and manual validation scripts
