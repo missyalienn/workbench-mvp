@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import time
@@ -189,18 +190,16 @@ def main(
             plan = create_search_plan(query_text, model=planner_model)
             planner_ms = int((time.perf_counter() - planner_start) * 1000)
             logger.info(
-                "SearchPlan created [plan_id=%s, query=%r, search_terms=%s, subreddits=%s, notes=%r]",
+                "SearchPlan created [plan_id=%s, query=%r, search_terms=%s, subreddits=%s]",
                 plan.plan_id,
                 plan.query,
                 plan.search_terms,
                 plan.subreddits,
-                plan.notes[:300] if plan.notes else "",
             )
             record["plan"] = {
                 "plan_id": str(plan.plan_id),
                 "search_terms": plan.search_terms,
                 "subreddits": plan.subreddits,
-                "reasoning": plan.notes,
             }
 
         except Exception as exc:
@@ -215,10 +214,10 @@ def main(
 
         try:
             fetch_start = time.perf_counter()
-            fetch_result = run_reddit_fetcher(
+            fetch_result = asyncio.run(run_reddit_fetcher(
                 plan=plan,
                 post_limit=post_limit,
-            )
+            ))
             fetch_ms = int((time.perf_counter() - fetch_start) * 1000)
             top3 = sorted(fetch_result.posts, key=lambda p: p.relevance_score, reverse=True)[:3]
             logger.info(

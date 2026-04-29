@@ -92,7 +92,7 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
             plan = SearchPlan(query=user_query, **response_dict)
 
             logger.info("planner.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_terms=len(plan.search_terms), n_subreddits=len(plan.subreddits))
-            logger.debug("planner.plan_details", search_terms=plan.search_terms, subreddits=plan.subreddits, notes=plan.notes)
+            logger.debug("planner.plan_details", search_terms=plan.search_terms, subreddits=plan.subreddits)
 
             return plan
 

@@ -1,6 +1,5 @@
+import asyncio
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextvars import copy_context
 from dataclasses import dataclass
 from typing import Any
 
@@ -63,86 +62,81 @@ def _score_post_candidates(candidates: list[PostCandidate]) -> list[Post]:
     return scored
 
 
-def _fetch_posts_for_pair(
+async def _fetch_posts_for_pair(
     *,
     subreddit: str,
     term: str,
     post_limit: int,
     fetched_at: float,
-    client: RedditClient | None = None,
+    client: RedditClient,
 ) -> list[PostCandidate]:
-    """Fetch and filter posts for a single (subreddit, term) pair."""
-    candidates: list[PostCandidate] = []
+    """Fetch and filter posts for a single (subreddit, term) pair.
+
+    Phase 1: stream paginate_search, apply text filters.
+    Phase 2: gather all comment fetches concurrently, then build PostCandidates.
+    """
+    # (post_id, raw_post, cleaned_title, cleaned_body)
+    filtered: list[tuple[str, dict[str, Any], str, str]] = []
     local_seen_post_ids: set[str] = set()
-    reddit_client = client or RedditClient()
 
     try:
-        for raw_post in reddit_client.paginate_search(
-            subreddit=subreddit,
-            query=term,
-            limit=post_limit,
-        ):
+        async for raw_post in client.paginate_search(subreddit=subreddit, query=term, limit=post_limit):
             post_id = raw_post.get("id")
             if not post_id:
                 logger.info("fetch.post_rejected", reason="no_id", subreddit=subreddit, term=term)
                 continue
-
             if not passes_post_validation(raw_post):
                 continue
-
             title = clean_text(raw_post.get("title", ""))
             body = clean_text(raw_post.get("selftext", ""))
-
             if is_post_too_short(body):
                 logger.info("fetch.post_rejected", reason="too_short", post_id=post_id)
                 continue
-
             if has_seen_post(post_id, local_seen_post_ids):
                 logger.info("fetch.post_rejected", reason="duplicate", post_id=post_id)
                 continue
-
-            try:
-                raw_comments = reddit_client.fetch_comments(post_id=post_id)
-            except (ExternalTimeoutError, RateLimitError, InvalidResponseError) as exc:
-                logger.warning("fetch.request_failed", context="comments", post_id=post_id, exc_type=type(exc).__name__, error=str(exc))
-                continue
-
-            filtered_comments = filter_comments(
-                post_id=post_id,
-                raw_comments=raw_comments,
-                max_comments=settings.FETCHER_MAX_COMMENTS_PER_POST,
-            )
-
-            comment_models = build_comment_models(filtered_comments, fetched_at)
-            if not comment_models:
-                logger.info("fetch.post_rejected", reason="no_comments", post_id=post_id)
-                continue
-
-            candidates.append(
-                PostCandidate(
-                    raw_post=raw_post,
-                    cleaned_title=title,
-                    cleaned_body=body,
-                    comments=comment_models,
-                    fetched_at=fetched_at,
-                )
-            )
+            filtered.append((post_id, raw_post, title, body))
     except (ExternalTimeoutError, RateLimitError, InvalidResponseError) as exc:
         logger.warning("fetch.request_failed", context="search", subreddit=subreddit, term=term, exc_type=type(exc).__name__, error=str(exc))
+        return []
+
+    if not filtered:
+        return []
+
+    # Phase 2: fetch all comments concurrently.
+    comment_results = await asyncio.gather(
+        *[client.fetch_comments(post_id=post_id) for post_id, _, _, _ in filtered],
+        return_exceptions=True,
+    )
+
+    candidates: list[PostCandidate] = []
+    for (post_id, raw_post, title, body), comment_result in zip(filtered, comment_results):
+        if isinstance(comment_result, Exception):
+            logger.warning("fetch.request_failed", context="comments", post_id=post_id, exc_type=type(comment_result).__name__, error=str(comment_result))
+            continue
+        filtered_comments = filter_comments(
+            post_id=post_id,
+            raw_comments=comment_result,
+            max_comments=settings.FETCHER_MAX_COMMENTS_PER_POST,
+        )
+        comment_models = build_comment_models(filtered_comments, fetched_at)
+        if not comment_models:
+            logger.info("fetch.post_rejected", reason="no_comments", post_id=post_id)
+            continue
+        candidates.append(
+            PostCandidate(
+                raw_post=raw_post,
+                cleaned_title=title,
+                cleaned_body=body,
+                comments=comment_models,
+                fetched_at=fetched_at,
+            )
+        )
     return candidates
 
 
-def _context_wrapper(fn, /, **kwargs):
-    """Run fn(**kwargs) inside a copy of the current contextvars context.
 
-    Captures the calling thread's context at dispatch time so that
-    structlog's bound variables (e.g. plan_id) are visible inside worker threads.
-    """
-    ctx = copy_context()
-    return ctx.run(fn, **kwargs)
-
-
-def run_reddit_fetcher(
+async def run_reddit_fetcher(
     plan: SearchPlan,
     *,
     post_limit: int,
@@ -173,52 +167,55 @@ def run_reddit_fetcher(
             seen_post_ids.add(post_id)
             candidate_posts.append(candidate)
 
-    if not settings.FETCHER_ENABLE_CONCURRENCY:
-        client = RedditClient()
-        for subreddit, term in tasks:
-            candidates = _fetch_posts_for_pair(
-                client=client,
-                subreddit=subreddit,
-                term=term,
-                post_limit=post_limit,
-                fetched_at=fetched_at,
-            )
-            _merge_candidates(candidates)
-    else:
-        max_workers = max(1, settings.FETCHER_MAX_WORKERS)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_map = {
-                executor.submit(
-                    _context_wrapper,
-                    _fetch_posts_for_pair,
+    async with RedditClient() as reddit_client:
+        if not settings.FETCHER_ENABLE_CONCURRENCY:
+            for subreddit, term in tasks:
+                candidates = await _fetch_posts_for_pair(
+                    client=reddit_client,
                     subreddit=subreddit,
                     term=term,
                     post_limit=post_limit,
                     fetched_at=fetched_at,
-                ): (subreddit, term)
-                for subreddit, term in tasks
-            }
-            for future in as_completed(future_map):
-                subreddit, term = future_map[future]
-                try:
-                    candidates = future.result()
-                except Exception as exc:
-                    logger.warning("fetch.concurrent_failed", subreddit=subreddit, term=term, error=str(exc))
-                    continue
+                )
                 _merge_candidates(candidates)
+        else:
+            results = await asyncio.gather(
+                *[
+                    _fetch_posts_for_pair(
+                        client=reddit_client,
+                        subreddit=subreddit,
+                        term=term,
+                        post_limit=post_limit,
+                        fetched_at=fetched_at,
+                    )
+                    for subreddit, term in tasks
+                ],
+                return_exceptions=True,
+            )
+            for (subreddit, term), result in zip(tasks, results):
+                if isinstance(result, Exception):
+                    logger.warning("fetch.concurrent_failed", subreddit=subreddit, term=term, error=str(result))
+                else:
+                    _merge_candidates(result)
 
     if settings.USE_SEMANTIC_RANKING:
         try:
-            client = get_openai_client()
+            openai_client = get_openai_client()
             store = get_vector_store()
             embedder = EmbeddingClient(
-                client=client,
+                client=openai_client,
                 model=settings.EMBEDDING_MODEL,
                 store=store,
             )
-            ranking_input = RankingInput(query=plan_query, candidates=candidate_posts)
-            query_embedding = embed_query(ranking_input, embedder)
-            accepted_posts = rank_candidates(ranking_input, query_embedding, embedder)
+            # Embed joined search terms — more targeted signal than the raw query.
+            embedding_text = ", ".join(plan.search_terms)
+            ranking_input = RankingInput(query=embedding_text, candidates=candidate_posts)
+
+            def _run_ranking() -> list:
+                qe = embed_query(ranking_input, embedder)
+                return rank_candidates(ranking_input, qe, embedder)
+
+            accepted_posts = await asyncio.to_thread(_run_ranking)
             logger.info("fetch.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_candidates=len(candidate_posts), n_ranked=len(accepted_posts))
         except EmbeddingError as exc:
             logger.warning("fetch.ranking_fallback", error=str(exc))

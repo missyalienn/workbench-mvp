@@ -1,15 +1,13 @@
-"""Manage creation and configuration of Reddit API sessions (OAuth, headers)."""
+"""Manage creation and configuration of async Reddit API sessions (OAuth, headers)."""
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-import os
+import httpx
 import keyring
-import requests
-from requests import Session
-from requests.auth import HTTPBasicAuth
 
 from common.exceptions import AuthError
 from config.logging_config import get_logger
@@ -24,14 +22,15 @@ USER_AGENT_SERVICE = os.getenv("REDDIT_USER_AGENT_SERVICE", "reddit-user-agent")
 KEYCHAIN_LABEL = os.getenv("REDDIT_KEYCHAIN_LABEL", "reddit-dev")
 DEFAULT_USER_AGENT = os.getenv("REDDIT_USER_AGENT", "Workbench/1.0 by /u/chippetto90")
 
-class RedditSession:
+
+class AsyncRedditSession:
     """
-    Manages Reddit API authentication and session lifecycle.
+    Manages Reddit API authentication and async session lifecycle.
 
     Usage:
-        session_mgr = RedditSession.from_keyring()
-        session = session_mgr.get_session()
-        response = session.get(f"{API_BASE_URL}/r/diy/search", params={"q": "sanding"})
+        session_mgr = AsyncRedditSession.from_keyring()
+        client = await session_mgr.get_client()
+        response = await client.get(f"{API_BASE_URL}/r/diy/search", params={"q": "sanding"})
     """
 
     def __init__(
@@ -46,42 +45,41 @@ class RedditSession:
         self.user_agent = user_agent
         self.token_refresh_buffer = token_refresh_buffer
 
-        self.session: Session = requests.Session()
-        self._token: Optional[str] = None
-        self._token_expiry: Optional[datetime] = None
-        self.session.headers.update(
-            {
+        self._client = httpx.AsyncClient(
+            headers={
                 "User-Agent": self.user_agent,
                 "Accept": "application/json",
             }
         )
+        self._token: Optional[str] = None
+        self._token_expiry: Optional[datetime] = None
 
-    # ------------------------------------------------------------------
-
-    def get_session(self) -> requests.Session:
-        """Return a valid, authorized session (refresh token if needed)."""
+    async def get_client(self) -> httpx.AsyncClient:
+        """Return a valid, authorized client (refresh token if needed)."""
         if self._token_expired():
-            self._refresh_token()
-        return self.session
+            await self._refresh_token()
+        return self._client
 
-    # ------------------------------------------------------------------
+    async def aclose(self) -> None:
+        await self._client.aclose()
 
     def _token_expired(self) -> bool:
         if not self._token or not self._token_expiry:
             return True
         return datetime.now(timezone.utc) >= self._token_expiry
 
-    def _refresh_token(self) -> None:
+    async def _refresh_token(self) -> None:
         """Refresh Reddit OAuth token."""
         logger.info("reddit.token_refresh")
         try:
-            response = requests.post(
-                TOKEN_URL,
-                auth=HTTPBasicAuth(self.client_id, self.client_secret),
-                data={"grant_type": "client_credentials"},
-                headers={"User-Agent": self.user_agent},
-                timeout=10,
-            )
+            async with httpx.AsyncClient() as tmp:
+                response = await tmp.post(
+                    TOKEN_URL,
+                    auth=(self.client_id, self.client_secret),
+                    data={"grant_type": "client_credentials"},
+                    headers={"User-Agent": self.user_agent},
+                    timeout=10,
+                )
             response.raise_for_status()
         except Exception as exc:
             raise AuthError(f"Failed to fetch token: {exc}") from exc
@@ -96,8 +94,7 @@ class RedditSession:
         self._token_expiry = datetime.now(timezone.utc) + timedelta(
             seconds=expires_in - self.token_refresh_buffer
         )
-
-        self.session.headers.update({"Authorization": f"Bearer {self._token}"})
+        self._client.headers["Authorization"] = f"Bearer {self._token}"
         logger.info("reddit.session_authorized", expires_at=str(self._token_expiry))
 
     @classmethod
@@ -108,7 +105,7 @@ class RedditSession:
         client_secret_service: str = CLIENT_SECRET_SERVICE,
         user_agent_service: str = USER_AGENT_SERVICE,
         label: str = KEYCHAIN_LABEL,
-    ) -> "RedditSession":
+    ) -> "AsyncRedditSession":
         """Build a session using credentials stored in the system keychain."""
         client_id = keyring.get_password(client_id_service, label)
         client_secret = keyring.get_password(client_secret_service, label)

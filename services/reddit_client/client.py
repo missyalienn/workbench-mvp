@@ -1,46 +1,52 @@
-"""High-level Reddit API client that wraps session management and endpoints."""
+"""High-level async Reddit API client that wraps session management and endpoints."""
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 from typing import Any
 
-import requests
-from requests import Session
+import httpx
 
-from common.exceptions import ExternalTimeoutError, RateLimitError, InvalidResponseError
+from common.exceptions import ExternalTimeoutError, InvalidResponseError, RateLimitError
 from .endpoints import fetch_comments, paginate_search, search_subreddit
-from .session import RedditSession
+from .session import AsyncRedditSession
 
 
-def _translate(exc: requests.exceptions.RequestException) -> ExternalTimeoutError | RateLimitError | InvalidResponseError:
-    """Translate an exhausted-retry requests exception to a typed ExternalServiceError."""
-    if isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)):
+def _translate(exc: httpx.HTTPError) -> ExternalTimeoutError | RateLimitError | InvalidResponseError:
+    """Translate an exhausted-retry httpx exception to a typed ExternalServiceError."""
+    if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
         return ExternalTimeoutError(str(exc))
-    if isinstance(exc, requests.exceptions.HTTPError):
-        status = exc.response.status_code if exc.response is not None else None
-        if status == 429:
+    if isinstance(exc, httpx.HTTPStatusError):
+        if exc.response.status_code == 429:
             return RateLimitError(str(exc))
     return InvalidResponseError(str(exc))
 
 
 class RedditClient:
-    """Transport-layer facade around `RedditSession` and endpoint helpers."""
+    """Async transport-layer facade around `AsyncRedditSession` and endpoint helpers."""
 
     def __init__(
         self,
         *,
-        session_manager: RedditSession | None = None,
+        session_manager: AsyncRedditSession | None = None,
     ) -> None:
-        self._session_manager = session_manager or RedditSession.from_keyring()
+        self._session_manager = session_manager or AsyncRedditSession.from_keyring()
 
-    def session(self) -> Session:
-        """Return an authenticated session (refreshing tokens behind the scenes)."""
-        return self._session_manager.get_session()
+    async def _client(self) -> httpx.AsyncClient:
+        return await self._session_manager.get_client()
 
-    # --- Public API -----------------------------------------------------
+    async def aclose(self) -> None:
+        await self._session_manager.aclose()
 
-    def search_subreddit(
+    async def __aenter__(self) -> "RedditClient":
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        await self.aclose()
+
+    # --- Public API ---
+
+    async def search_subreddit(
         self,
         *,
         subreddit: str,
@@ -48,53 +54,49 @@ class RedditClient:
         limit: int = 25,
         after: str | None = None,
     ) -> dict[str, Any]:
-        """Call Reddit's search endpoint via the managed session."""
         try:
-            return search_subreddit(
-                self.session(),
+            return await search_subreddit(
+                await self._client(),
                 subreddit=subreddit,
                 query=query,
                 limit=limit,
                 after=after,
             )
-        except requests.exceptions.RequestException as exc:
+        except httpx.HTTPError as exc:
             raise _translate(exc) from exc
 
-    def paginate_search(
+    async def paginate_search(
         self,
         *,
         subreddit: str,
         query: str,
         limit: int,
-    ) -> Iterator[dict[str, Any]]:
-        """Iterate through subreddit search results with automatic paging."""
+    ) -> AsyncIterator[dict[str, Any]]:
         try:
-            yield from paginate_search(
-                self.session(),
+            async for post in paginate_search(
+                await self._client(),
                 subreddit=subreddit,
                 query=query,
                 limit=limit,
-            )
-        except requests.exceptions.RequestException as exc:
+            ):
+                yield post
+        except httpx.HTTPError as exc:
             raise _translate(exc) from exc
 
-    def fetch_comments(
+    async def fetch_comments(
         self,
         *,
         post_id: str,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        """Fetch top-level comments for a post via the managed session."""
         try:
-            return fetch_comments(
-                self.session(),
+            return await fetch_comments(
+                await self._client(),
                 post_id=post_id,
                 limit=limit,
             )
-        except requests.exceptions.RequestException as exc:
+        except httpx.HTTPError as exc:
             raise _translate(exc) from exc
-
-    # --------------------------------------------------------------------
 
     def __repr__(self) -> str:
         return f"RedditClient(session_manager={self._session_manager!r})"

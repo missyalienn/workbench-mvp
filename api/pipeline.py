@@ -2,11 +2,12 @@
 
 Usage:
     from api.pipeline import run_evidence_pipeline
-    result = run_evidence_pipeline("how to caulk bathtub")
+    result = await run_evidence_pipeline("how to caulk bathtub")
 """
 
 from __future__ import annotations
 
+import asyncio
 import time
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -90,7 +91,7 @@ class _PipelineRun(NamedTuple):
     result: EvidenceResult
 
 
-def _run_pipeline(
+async def _run_pipeline(
     query: str,
     config_path: Path | None,
 ) -> _PipelineRun:
@@ -110,16 +111,16 @@ def _run_pipeline(
         prompt_version=prompt_version,
     )
 
-    plan = create_search_plan(query, model=planner_model)
+    plan = await asyncio.to_thread(create_search_plan, query, model=planner_model)
 
     with plan_context_scope(str(plan.plan_id)):
-        fetch_result = run_reddit_fetcher(plan=plan, post_limit=post_limit)
+        fetch_result = await run_reddit_fetcher(plan=plan, post_limit=post_limit)
         request = _build_request(fetch_result, selector_cfg, curator_cfg, prompt_version)
         messages = _build_messages(request)
 
         client = get_openai_client(environment=openai_env)
         llm_client = OpenAILLMClient(client=client, model=summarizer_model)
-        result = _summarize(llm_client, messages)
+        result = await asyncio.to_thread(llm_client.summarize_structured, messages=messages)
 
         logger.info(
             "pipeline.complete",
@@ -138,13 +139,13 @@ def _run_pipeline(
  
 
 
-def run_evidence_pipeline(
+async def run_evidence_pipeline(
     query: str,
     *,
     config_path: Path | None = None,
 ) -> dict[str, Any]:
     """Run the evidence pipeline for a single query and return evidence + plan info."""
-    plan, _, _, result = _run_pipeline(query, config_path)
+    plan, _, _, result = await _run_pipeline(query, config_path)
     return {
         "search_plan": {
             "search_terms": plan.search_terms,
@@ -154,13 +155,13 @@ def run_evidence_pipeline(
     }
 
 
-def pipeline_stage_summary(
+async def pipeline_stage_summary(
     query: str,
     *,
     config_path: Path | None = None,
 ) -> dict[str, Any]:
     """Run the evidence pipeline and return stage-boundary summaries only."""
-    plan, fetch_result, request, result = _run_pipeline(query, config_path)
+    plan, fetch_result, request, result = await _run_pipeline(query, config_path)
     fetch_result_summary = summarize_fetch_result(fetch_result)
     llm_context_summary = summarize_llm_context(request)
     evidence_result_summary = summarize_evidence_result(result)

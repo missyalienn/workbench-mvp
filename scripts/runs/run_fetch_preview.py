@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import time
@@ -105,11 +106,11 @@ def run(
 
         try:
             start = time.perf_counter()
-            fetch_result = run_reddit_fetcher(
+            fetch_result = asyncio.run(run_reddit_fetcher(
                 plan=plan,
                 post_limit=post_limit,
                 environment=environment,
-            )
+            ))
             elapsed = time.perf_counter() - start
             logger.info(
                 "Fetch done in %.2fs (subreddits=%d, terms=%d)",

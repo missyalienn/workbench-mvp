@@ -120,5 +120,5 @@ def read_root():
         502: {"model": ProblemDetail, "description": "External service failure"},
     },
 )
-def run(body: QueryRequest, request: Request):
-    return run_evidence_pipeline(body.query)
+async def run(body: QueryRequest, request: Request):
+    return await run_evidence_pipeline(body.query)
