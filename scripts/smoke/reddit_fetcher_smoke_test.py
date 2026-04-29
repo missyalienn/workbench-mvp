@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 import sys
@@ -38,11 +39,11 @@ def run(
     logger.info("  post_limit: %d", post_limit)
     logger.info("  plan_id: %s", plan.plan_id)
 
-    fetch_result = run_reddit_fetcher(
+    fetch_result = asyncio.run(run_reddit_fetcher(
         plan=plan,
         post_limit=post_limit,
         environment=environment,
-    )
+    ))
 
     total_possible = len(plan.subreddits) * len(plan.search_terms) * post_limit
     accepted_count = len(fetch_result.posts)
