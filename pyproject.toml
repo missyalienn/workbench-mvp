@@ -1,0 +1,36 @@
+[project]
+name = "workbench-mvp"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    # Web framework
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    # Data / validation
+    "pydantic>=2.12",
+    "pydantic-settings>=2.0",
+    # LLM / API clients
+    "openai>=2.6",
+    "httpx>=0.28",
+    # HTTP / auth
+    "requests>=2.32",
+    "keyring",
+    # Observability / retry
+    "structlog>=25.5",
+    "tenacity>=9.1",
+    # Config / text
+    "PyYAML>=6.0",
+    "beautifulsoup4>=4.13",
+    "markdown-it-py>=4.0",
+    # CLI scripts
+    "typer>=0.20",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-mock",
+    "black>=25.0",
+    "ruff",
+    "mypy",
+]
