@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request
-from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,7 +16,8 @@ from api.errors import (
     ProblemDetail,
     problem_response,
 )
-from api.pipeline import run_evidence_pipeline
+from api.models import EvidenceResponse
+from api.pipeline import run_pipeline
 from common.exceptions import ExternalServiceError, PlannerError
 from config.logging_config import configure_logging, get_logger
 
@@ -64,7 +64,6 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         detail=DETAIL_VALIDATION_ERROR,
         instance=str(request.url.path),
         trace_id=_trace_id(request),
-        errors=jsonable_encoder(exc.errors()),
     )
 
 
@@ -135,11 +134,12 @@ def read_root():
 
 @app.post(
     "/api/run",
+    response_model=EvidenceResponse,
     responses={
-        422: {"model": ProblemDetail, "description": "Request validation error"},
+        422: {"model": ProblemDetail, "description": "Validation or planning error"},
         500: {"model": ProblemDetail, "description": "Internal server error"},
         502: {"model": ProblemDetail, "description": "External service failure"},
     },
 )
-async def run(body: QueryRequest, request: Request):
-    return await run_evidence_pipeline(body.query)
+async def run(body: QueryRequest, request: Request) -> EvidenceResponse:
+    return await run_pipeline(body.query)

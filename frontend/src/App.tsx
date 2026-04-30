@@ -1,14 +1,13 @@
 import { useState } from "react";
-import type { ThreadEvidence } from "./types/api";
+import type { ClientThread } from "./types/api";
 import { submitDemoQuery } from "./services/api";
 import type { WorkbenchResult } from "./components/WorkbenchLanding";
 import { WorkbenchLanding } from "./components/WorkbenchLanding";
 
 function App() {
-  const sampleThreads: ThreadEvidence[] = [
+  const sampleThreads: ClientThread[] = [
     {
       rank: 1,
-      post_id: "abc123",
       title: "Best anchors for floating shelves on drywall — no stud available?",
       subreddit: "DIY",
       url: "https://www.reddit.com/r/DIY/",
@@ -16,7 +15,6 @@ function App() {
     },
     {
       rank: 2,
-      post_id: "def456",
       title: "How do I find studs for shelf mounting without a stud finder?",
       subreddit: "homeimprovement",
       url: "https://www.reddit.com/r/homeimprovement/",
@@ -30,9 +28,7 @@ function App() {
     link: thread.url,
     comments: 0,
     upvotes: 0,
-    relevance: Number.isFinite(thread.relevance_score)
-      ? Math.round(thread.relevance_score * 100)
-      : 0,
+    relevance: Math.round(thread.relevance_score * 100),
   }));
 
   const [results, setResults] = useState<WorkbenchResult[]>(initialResults);
@@ -58,7 +54,7 @@ function App() {
       return;
     }
 
-    const threads = response.evidence_result?.threads ?? [];
+    const threads = response.threads ?? [];
     const mappedResults: WorkbenchResult[] = threads.map((thread) => ({
       rank: thread.rank,
       subreddit: thread.subreddit,
@@ -66,9 +62,7 @@ function App() {
       link: thread.url,
       comments: 0,
       upvotes: 0,
-      relevance: Number.isFinite(thread.relevance_score)
-        ? Math.round(thread.relevance_score * 100)
-        : 0,
+      relevance: Math.round(thread.relevance_score * 100),
     }));
 
     setResults(mappedResults);

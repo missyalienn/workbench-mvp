@@ -13,6 +13,7 @@ from api.errors import (
     INTERNAL_SERVER_ERROR,
     VALIDATION_ERROR,
 )
+from api.models import ClientThread, EvidenceResponse, SearchPlan
 from common.exceptions import (
     AuthError,
     ExternalTimeoutError,
@@ -20,7 +21,7 @@ from common.exceptions import (
     RateLimitError,
 )
 
-_PIPELINE = "api.app.run_evidence_pipeline"
+_PIPELINE = "api.app.run_pipeline"
 
 client = TestClient(app, raise_server_exceptions=False)
 
@@ -101,9 +102,26 @@ def test_missing_query_field_returns_422() -> None:
 
 
 def test_successful_request_returns_pipeline_result() -> None:
-    mock_result = {"search_plan": {}, "evidence_result": "ok"}
+    mock_result = EvidenceResponse(
+        search_plan=SearchPlan(search_terms=["squeaky floor fix"], subreddits=["DIY"]),
+        status="ok",
+        summary="Most threads recommend injecting construction adhesive between the subfloor and joist.",
+        threads=[
+            ClientThread(
+                rank=1,
+                title="Fix squeaky floor without removing carpet",
+                subreddit="DIY",
+                url="https://www.reddit.com/r/DIY/comments/abc123/",
+            )
+        ],
+        limitations=[],
+    )
     with patch(_PIPELINE, return_value=mock_result):
         response = client.post("/api/run", json={"query": "how to fix a squeaky floor"})
 
     assert response.status_code == 200
-    assert response.json() == mock_result
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["summary"] == mock_result.summary
+    assert len(body["threads"]) == 1
+    assert body["threads"][0]["title"] == mock_result.threads[0].title

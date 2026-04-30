@@ -70,9 +70,13 @@ class EvidenceResult(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    status: Literal["ok", "partial", "error"] = Field(
+    status: Literal["ok", "partial", "insufficient"] = Field(
         ...,
-        description="Overall health of the curation attempt",
+        description="Overall quality of the evidence found",
+    )
+    summary: str = Field(
+        ...,
+        description="1-2 sentence synthesis of what the evidence says about the query",
     )
     threads: list[ThreadEvidence] = Field(
         ...,

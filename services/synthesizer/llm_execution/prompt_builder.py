@@ -15,11 +15,12 @@ from .types import PromptMessage
 
 def _build_system_content(request: EvidenceRequest) -> str:
     lines = [
-        "You are an evidence curator for the user's query.",
-        "Return only JSON matching EvidenceResult schema. No summaries, advice, or extra keys.",
+        "You are a research synthesizer for the user's query.",
+        "Return only JSON matching EvidenceResult schema. No extra keys.",
         "",
         "Fields:",
-        '- status: "ok" | "partial" | "error"',
+        '- status: "ok" | "partial" | "insufficient"',
+        "- summary: 1-2 sentences synthesizing what the evidence says about the query. Focus on the most common or actionable findings across threads. If status is 'insufficient', briefly describe what was found (or not found).",
         "- threads: list of ThreadEvidence (ranked best-to-worst)",
         "- limitations: 1-2 short strings explaining thin/empty evidence",
         "- prompt_version: must match request prompt_version exactly (current: v3)",
@@ -34,7 +35,7 @@ def _build_system_content(request: EvidenceRequest) -> str:
         "- Include only threads clearly relating to user's query.",
         "- Prefer higher relevance_score and stronger textual match.",
         "- Thin/ambiguous evidence: return fewer threads, status='partial', add limitations.",
-        "- No relevant evidence: status='error', empty threads list, add limitation.",
+        "- No relevant evidence: status='insufficient', empty threads list, add limitation.",
         "",
         "Limitations:",
         "- Describe gaps in EVIDENCE ONLY (thread count, coverage, quality).",

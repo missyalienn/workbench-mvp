@@ -58,7 +58,7 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
     # Wrap all operations in plan_id context for traceability
     with plan_context_scope(plan_id_str):
         t0 = time.monotonic()
-        logger.info("planner.start", query=user_query)
+        logger.info("planner.start")
         logger.debug("planner.plan_id_generated", plan_id=plan_id_str)
 
         try:

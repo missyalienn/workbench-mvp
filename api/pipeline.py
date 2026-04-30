@@ -22,6 +22,7 @@ from services.synthesizer.config import EvidenceOutputConfig
 from services.synthesizer.llm_execution.llm_client import OpenAILLMClient
 from services.synthesizer.llm_execution.prompt_builder import build_messages
 from services.synthesizer.llm_execution.types import PromptMessage
+from api.models import ClientThread, EvidenceResponse, SearchPlan
 from services.synthesizer.models import EvidenceRequest, EvidenceResult
 from services.synthesizer.stage_summary import (
     build_stage_diagnostics,
@@ -106,6 +107,7 @@ async def _run_pipeline(
     t0 = time.monotonic()
     logger.info(
         "pipeline.start",
+        query_preview=query[:80],
         planner_model=planner_model,
         summarizer_model=summarizer_model,
         prompt_version=prompt_version,
@@ -126,6 +128,8 @@ async def _run_pipeline(
             "pipeline.complete",
             elapsed_ms=int((time.monotonic() - t0) * 1000),
             status=result.status,
+            summary=result.summary,
+            limitations=result.limitations,
             n_threads=len(result.threads) if result.threads else 0,
         )
 
@@ -139,20 +143,36 @@ async def _run_pipeline(
  
 
 
-async def run_evidence_pipeline(
+def _to_client_response(plan: Any, result: EvidenceResult) -> EvidenceResponse:
+    return EvidenceResponse(
+        search_plan=SearchPlan(
+            search_terms=plan.search_terms,
+            subreddits=plan.subreddits,
+        ),
+        status=result.status,
+        summary=result.summary,
+        threads=[
+            ClientThread(
+                rank=t.rank,
+                title=t.title,
+                subreddit=t.subreddit,
+                url=t.url,
+                relevance_score=t.relevance_score,
+            )
+            for t in result.threads
+        ],
+        limitations=result.limitations,
+    )
+
+
+async def run_pipeline(
     query: str,
     *,
     config_path: Path | None = None,
-) -> dict[str, Any]:
-    """Run the evidence pipeline for a single query and return evidence + plan info."""
+) -> EvidenceResponse:
+    """Run the evidence pipeline for a single query and return the client response."""
     plan, _, _, result = await _run_pipeline(query, config_path)
-    return {
-        "search_plan": {
-            "search_terms": plan.search_terms,
-            "subreddits": plan.subreddits,
-        },
-        "evidence_result": result,
-    }
+    return _to_client_response(plan, result)
 
 
 async def pipeline_stage_summary(
