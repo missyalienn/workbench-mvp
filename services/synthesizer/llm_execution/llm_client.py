@@ -49,5 +49,19 @@ class OpenAILLMClient(LLMClient):
             logger.error("synthesizer.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error="output_parsed is None")
             raise InvalidResponseError("OpenAI returned no parsed output")
 
-        logger.info("synthesizer.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), status=parsed.status, n_threads=len(parsed.threads) if parsed.threads else 0)
+        usage = response.usage
+        cached_tokens = (
+            usage.input_tokens_details.cached_tokens
+            if usage and usage.input_tokens_details
+            else None
+        )
+        logger.info(
+            "synthesizer.complete",
+            elapsed_ms=int((time.monotonic() - t0) * 1000),
+            status=parsed.status,
+            n_threads=len(parsed.threads) if parsed.threads else 0,
+            input_tokens=usage.input_tokens if usage else None,
+            cached_tokens=cached_tokens,
+            output_tokens=usage.output_tokens if usage else None,
+        )
         return parsed
