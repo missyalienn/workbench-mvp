@@ -52,21 +52,8 @@ class EvidenceRequest(BaseModel):
     max_cautions: PositiveInt = Field(..., description="Max number of caution bullets permitted")
 
 
-class ThreadEvidence(BaseModel):
-    """Ranked Reddit thread selected as evidence for the user's query."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    rank: int = Field(..., description="Rank of the thread in the curation result")
-    post_id: str = Field(..., description="Reddit post ID backing this claim")
-    title: str = Field(..., description="Reddit post title")
-    subreddit: str = Field(..., description="Result subreddit")
-    url: str = Field(..., description="Canonical Reddit permalink")
-    relevance_score: float = Field(..., description="Fetcher-assigned relevance score")
-
-
 class EvidenceResult(BaseModel):
-    """Evidence-first research payload listing the most relevant threads."""
+    """Structured synthesis output returned by the curator LLM."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -78,10 +65,6 @@ class EvidenceResult(BaseModel):
         ...,
         description="1-2 sentence synthesis of what the evidence says about the query",
     )
-    threads: list[ThreadEvidence] = Field(
-        ...,
-        description="Ranked Reddit threads selected for the query",
-    )
     limitations: list[str] = Field(
         ...,
         description="Reasons evidence is thin or no threads were selected",
@@ -91,4 +74,4 @@ class EvidenceResult(BaseModel):
         description="Prompt template version used for this run",
     )
 
-__all__ = ["PostPayload", "EvidenceRequest", "ThreadEvidence", "EvidenceResult"]
+__all__ = ["PostPayload", "EvidenceRequest", "EvidenceResult"]

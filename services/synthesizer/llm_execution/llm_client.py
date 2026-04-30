@@ -59,7 +59,6 @@ class OpenAILLMClient(LLMClient):
             "synthesizer.complete",
             elapsed_ms=int((time.monotonic() - t0) * 1000),
             status=parsed.status,
-            n_threads=len(parsed.threads) if parsed.threads else 0,
             input_tokens=usage.input_tokens if usage else None,
             cached_tokens=cached_tokens,
             output_tokens=usage.output_tokens if usage else None,

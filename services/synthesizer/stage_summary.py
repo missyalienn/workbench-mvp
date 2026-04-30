@@ -54,22 +54,11 @@ def summarize_llm_context(request: EvidenceRequest) -> list[dict[str, Any]]:
 
 
 def summarize_evidence_result(result: EvidenceResult) -> dict[str, Any]:
-    threads = [
-        {
-            "rank": thread.rank,
-            "post_id": thread.post_id,
-            "title": thread.title,
-            "subreddit": thread.subreddit,
-            "url": thread.url,
-            "relevance_score": thread.relevance_score,
-        }
-        for thread in result.threads
-    ]
     return {
         "status": result.status,
+        "summary": result.summary,
         "limitations": list(result.limitations),
-        "threads": threads,
-        "evidence_selected_post_ids": [thread.post_id for thread in result.threads],
+        "prompt_version": result.prompt_version,
     }
 
 
@@ -80,11 +69,8 @@ def build_stage_diagnostics(
 ) -> dict[str, Any]:
     fetch_candidate_post_ids = {item["post_id"] for item in fetch_summary}
     llm_context_post_ids = {item["post_id"] for item in context_summary}
-    llm_evidence_post_ids = set(evidence_summary.get("evidence_selected_post_ids") or [])
     return {
         "fetch_candidate_post_ids": sorted(fetch_candidate_post_ids),
         "llm_context_post_ids": sorted(llm_context_post_ids),
-        "llm_evidence_post_ids": sorted(llm_evidence_post_ids),
         "dropped_before_context_post_ids": sorted(fetch_candidate_post_ids - llm_context_post_ids),
-        "in_context_not_in_evidence_post_ids": sorted(llm_context_post_ids - llm_evidence_post_ids),
     }

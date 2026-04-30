@@ -112,6 +112,7 @@ def test_successful_request_returns_pipeline_result() -> None:
                 title="Fix squeaky floor without removing carpet",
                 subreddit="DIY",
                 url="https://www.reddit.com/r/DIY/comments/abc123/",
+                relevance_score=0.91,
             )
         ],
         limitations=[],
