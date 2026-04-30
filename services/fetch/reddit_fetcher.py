@@ -168,35 +168,24 @@ async def run_reddit_fetcher(
             candidate_posts.append(candidate)
 
     async with RedditClient() as reddit_client:
-        if not settings.FETCHER_ENABLE_CONCURRENCY:
-            for subreddit, term in tasks:
-                candidates = await _fetch_posts_for_pair(
+        results = await asyncio.gather(
+            *[
+                _fetch_posts_for_pair(
                     client=reddit_client,
                     subreddit=subreddit,
                     term=term,
                     post_limit=post_limit,
                     fetched_at=fetched_at,
                 )
-                _merge_candidates(candidates)
-        else:
-            results = await asyncio.gather(
-                *[
-                    _fetch_posts_for_pair(
-                        client=reddit_client,
-                        subreddit=subreddit,
-                        term=term,
-                        post_limit=post_limit,
-                        fetched_at=fetched_at,
-                    )
-                    for subreddit, term in tasks
-                ],
-                return_exceptions=True,
-            )
-            for (subreddit, term), result in zip(tasks, results):
-                if isinstance(result, Exception):
-                    logger.warning("fetch.concurrent_failed", subreddit=subreddit, term=term, error=str(result))
-                else:
-                    _merge_candidates(result)
+                for subreddit, term in tasks
+            ],
+            return_exceptions=True,
+        )
+        for (subreddit, term), result in zip(tasks, results):
+            if isinstance(result, Exception):
+                logger.warning("fetch.concurrent_failed", subreddit=subreddit, term=term, error=str(result))
+            else:
+                _merge_candidates(result)
 
     if settings.USE_SEMANTIC_RANKING:
         try:

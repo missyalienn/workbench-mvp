@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     )    
   
 
-    # Agent Planner Defaults
+    # Planner Agent Defaults
     ALLOWED_SUBREDDITS: list[str] = [
         "diy",
         "homeimprovement",
@@ -63,9 +63,6 @@ class Settings(BaseSettings):
     MAX_SUBREDDITS: int = 3
     MAX_SEARCH_TERMS: int = 5
 
-    #Multithreading Configuration
-    FETCHER_MAX_WORKERS: int = 3
-    FETCHER_ENABLE_CONCURRENCY: bool = True
     FETCHER_MAX_COMMENTS_PER_POST: int = Field(
         5,
         validation_alias="FETCHER_MAX_COMMENTS_PER_POST",
