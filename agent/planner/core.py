@@ -12,6 +12,7 @@ from .model import SearchPlan
 from .prompt_templates import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from config.logging_config import get_logger, plan_context_scope
 from agent.clients.openai_client import get_openai_client, translate_openai_error
+from common.exceptions import PlannerError
 
 logger = get_logger(__name__)
 
@@ -95,6 +96,9 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
 
             return plan
 
+        except ValidationError as e:
+            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
+            raise PlannerError("Query could not be planned") from e
         except Exception as e:
             logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
             raise translate_openai_error(e) from e

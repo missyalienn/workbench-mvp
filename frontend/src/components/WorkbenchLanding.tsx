@@ -143,9 +143,7 @@ export function WorkbenchLanding({
           ) : (
             <>
               <p className="mb-3 px-1 text-sm text-[#8f8faa]">
-                {submittedQuery
-                  ? <>Top results for <span className="font-medium text-[#5b5b73]">"{submittedQuery}"</span></>
-                  : "Example results"}
+                {submittedQuery ? "Here's what we found:" : "Example results"}
               </p>
               <Card className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-sm">
                 <CardContent className="p-0">
@@ -187,6 +185,9 @@ export function WorkbenchLanding({
               </Card>
             </>
           )}
+          <p className="mt-3 px-1 text-xs text-[#a8a29e]">
+            Demo is currently scoped to DIY and home improvement communities on Reddit.
+          </p>
         </section>
 
         <section onMouseEnter={handleHowItWorksImpression}>
@@ -214,7 +215,7 @@ export function WorkbenchLanding({
               <CardContent className="p-0">
                 <div className="divide-y divide-[#e7e5e4]">
                   {[
-                    { title: "Plan your search", description: "Maps your question to targeted Reddit queries" },
+                    { title: "Plan your search", description: "Maps your question to targeted search queries" },
                     { title: "Fetch discussions", description: "Pulls relevant threads and top comments" },
                     { title: "Rank by relevance", description: "Scores posts against your query via embeddings" },
                     { title: "Synthesize results", description: "Extracts key evidence and surfaces citations" },

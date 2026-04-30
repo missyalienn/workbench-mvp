@@ -30,6 +30,16 @@ export async function submitDemoQuery(
       };
     }
 
+    if (response.status === 422) {
+      const body = await response.json().catch(() => null);
+      return {
+        error: {
+          type: "server",
+          message: body?.detail ?? "That doesn't look like a searchable topic. Try a question or subject you'd like to research.",
+        },
+      };
+    }
+
     if (!response.ok) {
       return {
         error: {

@@ -14,11 +14,13 @@ from pydantic import BaseModel
 VALIDATION_ERROR = "/problems/validation-error"
 EXTERNAL_SERVICE_FAILURE = "/problems/external-service-failure"
 INTERNAL_SERVER_ERROR = "/problems/internal-server-error"
+PLANNER_ERROR = "/problems/planner-error"
 
 # Response detail strings — use these constants in handlers, not inline literals
 DETAIL_VALIDATION_ERROR = "Request body failed validation."
 DETAIL_EXTERNAL_SERVICE_FAILURE = "An external service failed to fulfill the request."
 DETAIL_INTERNAL_SERVER_ERROR = "An unexpected error occurred."
+DETAIL_PLANNER_ERROR = "That doesn't look like a searchable topic. Try a question or subject you'd like to research."
 
 
 class ProblemDetail(BaseModel):

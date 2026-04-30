@@ -8,15 +8,17 @@ from pydantic import BaseModel, field_validator
 from api.errors import (
     EXTERNAL_SERVICE_FAILURE,
     INTERNAL_SERVER_ERROR,
+    PLANNER_ERROR,
     VALIDATION_ERROR,
     DETAIL_EXTERNAL_SERVICE_FAILURE,
     DETAIL_INTERNAL_SERVER_ERROR,
+    DETAIL_PLANNER_ERROR,
     DETAIL_VALIDATION_ERROR,
     ProblemDetail,
     problem_response,
 )
 from api.pipeline import run_evidence_pipeline
-from common.exceptions import ExternalServiceError
+from common.exceptions import ExternalServiceError, PlannerError
 from config.logging_config import configure_logging, get_logger
 
 # To start the FastAPI app, run:
@@ -63,6 +65,25 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         instance=str(request.url.path),
         trace_id=_trace_id(request),
         errors=jsonable_encoder(exc.errors()),
+    )
+
+
+@app.exception_handler(PlannerError)
+async def planner_error_handler(request: Request, exc: PlannerError) -> JSONResponse:
+    logger.warning(
+        "api.planner_error",
+        exc_type=type(exc).__name__,
+        exc=str(exc),
+        path=str(request.url.path),
+        trace_id=_trace_id(request),
+    )
+    return problem_response(
+        type=PLANNER_ERROR,
+        title="Query could not be planned",
+        status=422,
+        detail=DETAIL_PLANNER_ERROR,
+        instance=str(request.url.path),
+        trace_id=_trace_id(request),
     )
 
 
