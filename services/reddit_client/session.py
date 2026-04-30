@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -53,11 +54,15 @@ class AsyncRedditSession:
         )
         self._token: Optional[str] = None
         self._token_expiry: Optional[datetime] = None
+        self._lock = asyncio.Lock()
 
     async def get_client(self) -> httpx.AsyncClient:
         """Return a valid, authorized client (refresh token if needed)."""
-        if self._token_expired():
-            await self._refresh_token()
+        if not self._token_expired():
+            return self._client
+        async with self._lock:
+            if self._token_expired():
+                await self._refresh_token()
         return self._client
 
     async def aclose(self) -> None:
