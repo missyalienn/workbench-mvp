@@ -1,12 +1,33 @@
-interface LoadingStateProps {
-  stageMessage: string;
-}
+import { useEffect, useState } from "react";
+import { Progress } from "@/components/ui/progress";
 
-export function LoadingState({ stageMessage }: LoadingStateProps) {
+const STAGES = [
+  { delay: 0, message: "Planning your search..." },
+  { delay: 2000, message: "Fetching community discussions..." },
+  { delay: 5000, message: "Filtering and ranking results..." },
+  { delay: 8000, message: "Synthesizing results..." },
+  { delay: 11000, message: "Wrapping up..." },
+];
+
+export function LoadingState() {
+  const [stageIndex, setStageIndex] = useState(0);
+
+  useEffect(() => {
+    const timers = STAGES.slice(1).map((stage, i) =>
+      setTimeout(() => setStageIndex(i + 1), stage.delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
   return (
-    <div className="flex flex-col items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mb-4"></div>
-      <p className="text-[#999999]">{stageMessage}</p>
+    <div className="flex flex-col gap-3 py-8">
+      <Progress
+        indeterminate
+        className="bg-[#e7e5e4] [&>div]:bg-[#b9b9da]"
+      />
+      <p className="text-center text-sm text-[#8f8faa]">
+        {STAGES[stageIndex].message}
+      </p>
     </div>
   );
 }

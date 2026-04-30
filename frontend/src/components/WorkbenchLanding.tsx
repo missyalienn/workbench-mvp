@@ -10,7 +10,7 @@
  * />
  */
 import { useRef, useState } from "react";
-import { Search, SendHorizontal } from "lucide-react";
+import { ChevronUp, Search, SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,15 @@ export function WorkbenchLanding({
   onHowItWorksClick,
 }: WorkbenchLandingProps) {
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [howItWorksOpen, setHowItWorksOpen] = useState(true);
+  const [howItWorksAnimKey, setHowItWorksAnimKey] = useState(0);
   const hasFiredHowItWorks = useRef(false);
+
+  const toggleHowItWorks = () => {
+    if (!howItWorksOpen) setHowItWorksAnimKey((k) => k + 1);
+    setHowItWorksOpen((prev) => !prev);
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,6 +59,7 @@ export function WorkbenchLanding({
     if (!trimmedQuery) {
       return;
     }
+    setSubmittedQuery(trimmedQuery);
     onSearch(trimmedQuery);
   };
 
@@ -113,8 +122,8 @@ export function WorkbenchLanding({
         </section>
 
         {isLoading ? (
-          <section className="mx-auto w-full max-w-2xl">
-            <LoadingState stageMessage="Analyzing results..." />
+          <section className="mx-auto w-full max-w-lg md:max-w-xl">
+            <LoadingState />
           </section>
         ) : null}
 
@@ -132,81 +141,105 @@ export function WorkbenchLanding({
           {results.length === 0 ? (
             <p className="py-8 text-center text-sm text-[#a8a29e]">No results yet.</p>
           ) : (
-            <Card className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-sm">
-              <CardContent className="p-0">
-                <ol className="divide-y divide-[#e7e5e4]">
-                  {results.map((result) => {
-                    const { label, textClass } = getRelevanceLabel(result.relevance);
-                    return (
-                      <li
-                        key={`${result.rank}-${result.link}`}
-                        className="grid grid-cols-[2rem_1fr] gap-3 px-5 py-3 transition-colors hover:bg-[#fafaf9]"
-                      >
-                        <span className="pt-0.5 text-xs tabular-nums text-[#a8a29e]">
-                          {String(result.rank).padStart(2, "0")}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <a
-                            href={result.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-base font-semibold leading-snug text-[#1e1b4b] hover:underline"
-                          >
-                            {result.title}
-                          </a>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-[#8f8faa]">
-                            <span>r/{result.subreddit}</span>
-                            {Number.isFinite(result.relevance) && (
-                              <>
-                                <span>·</span>
-                                <span className={textClass}>{label}</span>
-                              </>
-                            )}
+            <>
+              <p className="mb-3 px-1 text-sm text-[#8f8faa]">
+                {submittedQuery
+                  ? <>Top results for <span className="font-medium text-[#5b5b73]">"{submittedQuery}"</span></>
+                  : "Example results"}
+              </p>
+              <Card className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-sm">
+                <CardContent className="p-0">
+                  <ol className="divide-y divide-[#e7e5e4]">
+                    {results.map((result) => {
+                      const { label, textClass } = getRelevanceLabel(result.relevance);
+                      return (
+                        <li
+                          key={`${result.rank}-${result.link}`}
+                          className="grid grid-cols-[2rem_1fr] gap-3 px-5 py-3 transition-colors hover:bg-[#fafaf9]"
+                        >
+                          <span className="pt-0.5 text-xs tabular-nums text-[#a8a29e]">
+                            {String(result.rank).padStart(2, "0")}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <a
+                              href={result.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-base font-semibold leading-snug text-[#1e1b4b] hover:underline"
+                            >
+                              {result.title}
+                            </a>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-[#8f8faa]">
+                              <span>r/{result.subreddit}</span>
+                              {Number.isFinite(result.relevance) && (
+                                <>
+                                  <span>·</span>
+                                  <span className={textClass}>{label}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </CardContent>
-            </Card>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </CardContent>
+              </Card>
+            </>
           )}
         </section>
 
         <section onMouseEnter={handleHowItWorksImpression}>
-          <div className="mb-4 text-center">
+          <div className="mb-4 flex items-center justify-center gap-2">
             <TypographyH2 className="border-b-0 pb-0 text-[22px] text-[#262162] md:text-[26px]">
               How it works
             </TypographyH2>
+            <button
+              onClick={toggleHowItWorks}
+              aria-label={howItWorksOpen ? "Collapse how it works" : "Expand how it works"}
+              className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-[#8f8faa] transition-colors hover:bg-[#ebebf4] hover:text-[#262162]"
+            >
+              <ChevronUp
+                className="h-4 w-4 transition-transform duration-300"
+                style={{ transform: howItWorksOpen ? "rotate(0deg)" : "rotate(180deg)" }}
+              />
+            </button>
           </div>
-          <Card className="mx-auto max-w-2xl border-[#e7e5e4] bg-white shadow-sm">
-            <CardContent className="p-0">
-              <div className="divide-y divide-[#e7e5e4]">
-                {[
-                  "Collect source threads",
-                  "Screen for relevance",
-                  "Extract key evidence",
-                  "Rank results with citations",
-                ].map((item, index) => (
-                  <div
-                    key={item}
-                    className="relative flex items-center gap-3 px-4 py-4 pl-12 text-sm text-[#5b5b73] md:px-6 md:pl-14"
-                  >
-                    <span
-                      className="absolute left-[18px] flex h-2.5 w-2.5 items-center justify-center rounded-full border border-[#262162] md:left-[22px]"
+
+          <div
+            className="overflow-hidden transition-all duration-300 ease-in-out"
+            style={{ maxHeight: howItWorksOpen ? "600px" : "0px", opacity: howItWorksOpen ? 1 : 0 }}
+          >
+            <Card className="mx-auto max-w-2xl border-[#e7e5e4] bg-white shadow-sm">
+              <CardContent className="p-0">
+                <div className="divide-y divide-[#e7e5e4]">
+                  {[
+                    { title: "Plan your search", description: "Maps your question to targeted Reddit queries" },
+                    { title: "Fetch discussions", description: "Pulls relevant threads and top comments" },
+                    { title: "Rank by relevance", description: "Scores posts against your query via embeddings" },
+                    { title: "Synthesize results", description: "Extracts key evidence and surfaces citations" },
+                  ].map((step, index) => (
+                    <div
+                      key={`${step.title}-${howItWorksAnimKey}`}
+                      className="relative flex items-start gap-4 px-5 py-4 md:px-6"
                       style={{
-                        backgroundColor:
-                          index === 0
-                            ? "transparent"
-                            : `rgba(38, 33, 98, ${0.2 + index * 0.2})`,
+                        animation: howItWorksOpen ? `fadeSlideIn 400ms ease-out both` : "none",
+                        animationDelay: `${index * 150}ms`,
                       }}
-                    />
-                    <span className="flex-1">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                    >
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#262162] text-[11px] font-semibold text-white">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#262162]">{step.title}</p>
+                        <p className="mt-0.5 text-sm text-[#5b5b73]">{step.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
         <footer className="border-t border-[#e7e5e4] pt-6 text-sm text-[#a8a29e]">

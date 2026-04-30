@@ -9,18 +9,18 @@ function App() {
     {
       rank: 1,
       post_id: "abc123",
-      title: "Best caulk for a bathtub and tips to avoid mold?",
-      subreddit: "homeimprovement",
-      url: "https://www.reddit.com/r/homeimprovement/",
-      relevance_score: 0.92,
+      title: "Best anchors for floating shelves on drywall — no stud available?",
+      subreddit: "DIY",
+      url: "https://www.reddit.com/r/DIY/",
+      relevance_score: 0.91,
     },
     {
       rank: 2,
       post_id: "def456",
-      title: "How to remove old caulk cleanly before re-caulking",
-      subreddit: "diy",
-      url: "https://www.reddit.com/r/diy/",
-      relevance_score: 0.84,
+      title: "How do I find studs for shelf mounting without a stud finder?",
+      subreddit: "homeimprovement",
+      url: "https://www.reddit.com/r/homeimprovement/",
+      relevance_score: 0.83,
     },
   ];
   const initialResults: WorkbenchResult[] = sampleThreads.map((thread) => ({
