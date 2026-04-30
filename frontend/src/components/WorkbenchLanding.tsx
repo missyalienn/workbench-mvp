@@ -14,16 +14,8 @@ import { Search, SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
+import { LoadingState } from "@/components/LoadingState";
 
 export interface WorkbenchResult {
   rank: number;
@@ -70,6 +62,12 @@ export function WorkbenchLanding({
     onHowItWorksClick();
   };
 
+  const getRelevanceLabel = (relevance: number): { label: string; textClass: string } => {
+    if (relevance >= 60) return { label: "High relevance", textClass: "text-green-800 font-medium" };
+    if (relevance >= 50) return { label: "Medium relevance", textClass: "text-amber-700 font-medium" };
+    return { label: "Low relevance", textClass: "text-[#8f8faa]" };
+  };
+
 
 
   return (
@@ -80,26 +78,14 @@ export function WorkbenchLanding({
         </header>
 
         <section className="px-2 text-center">
-          <div className="space-y-4">
-            <TypographyH1 className="text-balance text-[32px] font-semibold leading-[1.1] tracking-[0.005em] text-[#262162] md:text-[44px]">
-              AI research that cites its sources.
-            </TypographyH1>
-            <TypographyH2 className="mx-auto max-w-xl border-b-0 pb-0 text-[18px] font-normal leading-[1.4] tracking-[0.01em] text-[#62627a] md:text-[22px]">
-              <span className="block">
-                Ranked answers from DIY communities on Reddit.
-              </span>
-              <span className="block">Built to surface signal, not noise.</span>
-            </TypographyH2>
-          </div>
-        </section>
-
-        <section className="px-2 pb-10 text-center pt-4">
-          <div className="space-y-3">
-            <TypographyH1 className="border-b-0 pb-0 text-[28px] font-normal text-[#262162] md:text-[36px]">
-              Start with a DIY topic or question.
-            </TypographyH1>
-          </div>
-          <form onSubmit={handleSubmit} className="mt-3">
+          <TypographyH1 className="mb-4 text-balance text-[36px] font-bold leading-[1.1] tracking-[0.005em] text-[#262162] md:text-[48px]">
+            Find your starting point, faster.
+          </TypographyH1>
+          <p className="mx-auto mb-12 max-w-xl text-[17px] font-normal leading-[1.55] text-[#62627a] md:text-[19px]">
+            Workbench turns your question into a targeted search plan, removes low-value results, and ranks relevant material so you can get started with a clear direction.
+          </p>
+          <p className="mb-3 text-sm font-medium text-[#62627a]">Start with a topic or question.</p>
+          <form onSubmit={handleSubmit}>
             <div className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-[20px] border border-[#d0d0de] bg-[#fbfbfc] px-2 py-1 text-[#262162] shadow-sm transition-all duration-300 focus-within:border-[#262162] focus-within:ring-2 focus-within:ring-[#b9b9da] md:max-w-xl">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#262162] shadow-sm">
                 <Search className="h-5 w-5" />
@@ -127,13 +113,8 @@ export function WorkbenchLanding({
         </section>
 
         {isLoading ? (
-          <section className="mx-auto w-full max-w-4xl">
-            <Card className="border-[#e7e5e4] bg-white shadow-sm">
-              <CardContent className="flex flex-col items-center justify-center gap-3 py-8 text-sm text-[#5b5b73]">
-                <Spinner className="h-8 w-8 text-[#262162]" />
-                <span>Searching, filtering, and ranking results...</span>
-              </CardContent>
-            </Card>
+          <section className="mx-auto w-full max-w-2xl">
+            <LoadingState stageMessage="Analyzing results..." />
           </section>
         ) : null}
 
@@ -147,81 +128,49 @@ export function WorkbenchLanding({
           </section>
         ) : null}
 
-        <section className="mx-auto mt-8 w-full max-w-4xl space-y-4">
-          <div className="space-y-1 text-center">
-            <TypographyH2 className="border-b-0 pb-0 text-[22px] text-[#262162] md:text-[30px]">
-              Ranked results, verified sources.
-            </TypographyH2>
-            <p className="text-sm text-[#8f8faa]">
-            </p>
-          </div>
-
-          <div className="overflow-hidden rounded-lg border border-[#e7e5e4] bg-white">
-            <Table>
-              <TableHeader className="bg-[#f2f2f7]">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
-                    Rank
-                  </TableHead>
-                  <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
-                    Subreddit
-                  </TableHead>
-                  <TableHead className="px-4 py-3 text-xs uppercase text-[#262162]">
-                    Discussion
-                  </TableHead>
-                  <TableHead className="px-4 py-3 text-right text-xs uppercase text-[#262162]">
-                    Relevance
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {results.length === 0 ? (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell
-                      colSpan={4}
-                      className="px-4 py-8 text-center text-[#a8a29e]"
-                    >
-                      No results yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  results.map((result) => (
-                    <TableRow
-                      key={`${result.rank}-${result.link}`}
-                      className="border-[#e7e5e4] hover:bg-[#fafaf9]"
-                    >
-                      <TableCell className="px-4 py-4 font-semibold text-[#262162]">
-                        {result.rank}
-                      </TableCell>
-                      <TableCell className="px-4 py-4">
-                        <span className="inline-flex rounded-full bg-[#eef0fb] px-2 py-1 text-xs text-[#262162]">
-                          r/{result.subreddit}
+        <section className="mx-auto -mt-6 w-full max-w-lg md:max-w-xl">
+          {results.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[#a8a29e]">No results yet.</p>
+          ) : (
+            <Card className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-sm">
+              <CardContent className="p-0">
+                <ol className="divide-y divide-[#e7e5e4]">
+                  {results.map((result) => {
+                    const { label, textClass } = getRelevanceLabel(result.relevance);
+                    return (
+                      <li
+                        key={`${result.rank}-${result.link}`}
+                        className="grid grid-cols-[2rem_1fr] gap-3 px-5 py-3 transition-colors hover:bg-[#fafaf9]"
+                      >
+                        <span className="pt-0.5 text-xs tabular-nums text-[#a8a29e]">
+                          {String(result.rank).padStart(2, "0")}
                         </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-4">
-                        <div className="text-base font-semibold text-[#1e1b4b]">
-                          {result.title}
+                        <div className="min-w-0 flex-1">
+                          <a
+                            href={result.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-base font-semibold leading-snug text-[#1e1b4b] hover:underline"
+                          >
+                            {result.title}
+                          </a>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-[#8f8faa]">
+                            <span>r/{result.subreddit}</span>
+                            {Number.isFinite(result.relevance) && (
+                              <>
+                                <span>·</span>
+                                <span className={textClass}>{label}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <a
-                          href={result.link}
-                          className="text-sm text-[#2f3aa1] hover:text-[#262162] hover:underline"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          View discussion on Reddit →
-                        </a>
-                      </TableCell>
-                      <TableCell className="px-4 py-4 text-right font-semibold text-[#f59e0b]">
-                        {Number.isFinite(result.relevance)
-                          ? result.relevance
-                          : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </CardContent>
+            </Card>
+          )}
         </section>
 
         <section onMouseEnter={handleHowItWorksImpression}>
