@@ -48,8 +48,6 @@ def _make_request(post_payloads: list[PostPayload]) -> EvidenceRequest:
         max_post_chars=200,
         max_comment_chars=100,
         summary_char_budget=500,
-        max_highlights=3,
-        max_cautions=2,
     )
 
 
@@ -76,6 +74,8 @@ def test_build_client_threads_preserves_context_order() -> None:
     assert [thread.rank for thread in threads] == [1, 2]
     assert [thread.title for thread in threads] == ["First title", "Second title"]
     assert [thread.relevance_score for thread in threads] == [0.9, 0.8]
+    assert [thread.post_karma for thread in threads] == [10, 10]
+    assert [thread.num_comments for thread in threads] == [3, 3]
 
 
 def test_to_client_response_uses_request_post_payloads_for_threads() -> None:
@@ -111,3 +111,23 @@ def test_to_client_response_uses_request_post_payloads_for_threads() -> None:
     assert response.threads[0].title == "Context-ranked title"
     assert response.threads[0].url == "https://example.com/context"
     assert response.threads[0].relevance_score == 0.95
+    assert response.threads[0].post_karma == 10
+    assert response.threads[0].num_comments == 3
+
+
+def test_evidence_result_trims_limitations_to_two_items() -> None:
+    result = EvidenceResult(
+        status="partial",
+        summary="Evidence points in one direction.",
+        limitations=[
+            "Some posts focus on one repair situation.",
+            "Some scenarios get less detail.",
+            "A third limitation should be dropped.",
+        ],
+        prompt_version="v3",
+    )
+
+    assert result.limitations == [
+        "Some posts focus on one repair situation.",
+        "Some scenarios get less detail.",
+    ]

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.types import PositiveInt
 
 class PostPayload(BaseModel):
@@ -48,8 +48,6 @@ class EvidenceRequest(BaseModel):
     max_post_chars: PositiveInt = Field(..., description="Max characters allocated to each post body excerpt")
     max_comment_chars: PositiveInt = Field(..., description="Max characters allocated to each comment excerpt")
     summary_char_budget: PositiveInt = Field(..., description="Max characters allowed in the generated summary")
-    max_highlights: PositiveInt = Field(..., description="Max number of highlight bullets permitted")
-    max_cautions: PositiveInt = Field(..., description="Max number of caution bullets permitted")
 
 
 class EvidenceResult(BaseModel):
@@ -73,5 +71,12 @@ class EvidenceResult(BaseModel):
         ...,
         description="Prompt template version used for this run",
     )
+
+    @field_validator("limitations", mode="before")
+    @classmethod
+    def _limit_limitations(cls, value: object) -> object:
+        if isinstance(value, list):
+            return value[:2]
+        return value
 
 __all__ = ["PostPayload", "EvidenceRequest", "EvidenceResult"]

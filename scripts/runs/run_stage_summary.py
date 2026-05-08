@@ -24,7 +24,7 @@ if __package__ is None or __package__ == "":
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
-from config.logging_config import get_logger
+from config.logging_config import configure_logging, get_logger
 from api.pipeline import _run_pipeline
 from services.synthesizer.stage_summary import (
     build_stage_diagnostics,
@@ -35,6 +35,8 @@ from services.synthesizer.stage_summary import (
 
 logger = get_logger(__name__)
 app = typer.Typer(add_completion=False)
+
+configure_logging()
 
 
 def _sanitize_label(label: str) -> str:

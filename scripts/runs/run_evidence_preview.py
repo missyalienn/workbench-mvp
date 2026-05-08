@@ -21,7 +21,7 @@ if __package__ is None or __package__ == "":
 
 from agent.clients.openai_client import get_openai_client
 from agent.planner.core import create_search_plan
-from config.logging_config import get_logger
+from config.logging_config import configure_logging, get_logger
 from services.fetch.reddit_fetcher import run_reddit_fetcher
 from services.synthesizer.config import EvidenceOutputConfig
 from common.exceptions import ExternalServiceError
@@ -34,6 +34,8 @@ from services.context_builder.config import ContextBuilderConfig
 
 logger = get_logger(__name__)
 app = typer.Typer(add_completion=False)
+
+configure_logging()
 
 def _sanitize_label(label: str) -> str:
     cleaned = label.strip().replace(" ", "-")
@@ -71,8 +73,6 @@ def _build_context_builder_config(cfg: dict[str, Any]) -> ContextBuilderConfig:
 def _build_curator_config(cfg: dict[str, Any]) -> EvidenceOutputConfig:
     return EvidenceOutputConfig(
         summary_char_budget=cfg["summary_char_budget"],
-        max_highlights=cfg["max_highlights"],
-        max_cautions=cfg["max_cautions"],
     )
 
 
@@ -154,12 +154,11 @@ def main(
     queries = _resolve_queries(cfg, query)
     selector_cfg = _build_context_builder_config(cfg)
     curator_cfg = _build_curator_config(cfg)
-    openai_env = cfg.get("openai_environment", "openai-dev")
     planner_model = cfg.get("planner_model", "gpt-4.1-mini")
     summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
     prompt_version = cfg.get("prompt_version", "v3")
-    client = get_openai_client(environment=openai_env)
+    client = get_openai_client()
     llm_client = OpenAILLMClient(client=client, model=summarizer_model)
 
     logger.info(
@@ -266,7 +265,6 @@ def main(
                     "meta": {
                         "model": summarizer_model,
                         "prompt_version": prompt_version,
-                        "openai_environment": openai_env,
                         "post_limit": post_limit,
                     **counts,
                     "timing_ms": {

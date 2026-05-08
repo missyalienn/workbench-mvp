@@ -168,8 +168,6 @@ def test_build_context_request_copies_metadata() -> None:
 
     summarizer_cfg = EvidenceOutputConfig(
         summary_char_budget=1024,
-        max_highlights=5,
-        max_cautions=3,
     )
     request = build_context_request(fetch_result, cfg, prompt_version="v1", summarizer_cfg=summarizer_cfg)
 
@@ -180,5 +178,3 @@ def test_build_context_request_copies_metadata() -> None:
     assert len(request.post_payloads) == 1
     assert request.post_payloads[0].post_id == "p1"
     assert request.summary_char_budget == summarizer_cfg.summary_char_budget
-    assert request.max_highlights == summarizer_cfg.max_highlights
-    assert request.max_cautions == summarizer_cfg.max_cautions

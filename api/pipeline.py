@@ -56,8 +56,6 @@ def _build_context_builder_config(cfg: dict[str, Any]) -> ContextBuilderConfig:
 def _build_curator_config(cfg: dict[str, Any]) -> EvidenceOutputConfig:
     return EvidenceOutputConfig(
         summary_char_budget=cfg["summary_char_budget"],
-        max_highlights=cfg["max_highlights"],
-        max_cautions=cfg["max_cautions"],
     )
 
 
@@ -99,7 +97,6 @@ async def _run_pipeline(
     cfg = _load_config(config_path or DEFAULT_CONFIG_PATH)
     selector_cfg = _build_context_builder_config(cfg)
     curator_cfg = _build_curator_config(cfg)
-    openai_env = cfg.get("openai_environment", "openai-dev")
     planner_model = cfg.get("planner_model", "gpt-4.1-mini")
     summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
@@ -120,7 +117,7 @@ async def _run_pipeline(
         request = _build_request(fetch_result, selector_cfg, curator_cfg, prompt_version)
         messages = _build_messages(request)
 
-        client = get_openai_client(environment=openai_env)
+        client = get_openai_client()
         llm_client = OpenAILLMClient(client=client, model=summarizer_model)
         result = await asyncio.to_thread(llm_client.summarize_structured, messages=messages)
 
@@ -151,12 +148,30 @@ def _build_client_threads(post_payloads: list[PostPayload]) -> list[ClientThread
             subreddit=post.subreddit,
             url=post.url,
             relevance_score=post.relevance_score,
+            post_karma=post.post_karma,
+            num_comments=post.num_comments,
         )
         for index, post in enumerate(post_payloads, start=1)
     ]
 
 
 def _to_client_response(plan: Any, request: EvidenceRequest, result: EvidenceResult) -> EvidenceResponse:
+    threads = _build_client_threads(request.post_payloads)
+    logger.debug(
+        "pipeline.response_preview",
+        n_threads=len(threads),
+        threads=[
+            {
+                "rank": thread.rank,
+                "title": thread.title,
+                "subreddit": thread.subreddit,
+                "relevance_score": thread.relevance_score,
+                "post_karma": thread.post_karma,
+                "num_comments": thread.num_comments,
+            }
+            for thread in threads
+        ],
+    )
     return EvidenceResponse(
         search_plan=SearchPlan(
             search_terms=plan.search_terms,
@@ -164,7 +179,7 @@ def _to_client_response(plan: Any, request: EvidenceRequest, result: EvidenceRes
         ),
         status=result.status,
         summary=result.summary,
-        threads=_build_client_threads(request.post_payloads),
+        threads=threads,
         limitations=result.limitations,
     )
 

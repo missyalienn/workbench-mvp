@@ -113,6 +113,8 @@ def test_successful_request_returns_pipeline_result() -> None:
                 subreddit="DIY",
                 url="https://www.reddit.com/r/DIY/comments/abc123/",
                 relevance_score=0.91,
+                post_karma=250,
+                num_comments=18,
             )
         ],
         limitations=[],

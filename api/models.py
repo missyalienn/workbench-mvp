@@ -23,6 +23,8 @@ class ClientThread(BaseModel):
     subreddit: str
     url: str
     relevance_score: float
+    post_karma: int
+    num_comments: int
 
 
 class EvidenceResponse(BaseModel):
