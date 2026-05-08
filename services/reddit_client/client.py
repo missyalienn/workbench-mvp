@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 
 from common.exceptions import ExternalTimeoutError, InvalidResponseError, RateLimitError
+from config.settings import settings
 from .endpoints import fetch_comments, paginate_search, search_subreddit
 from .session import AsyncRedditSession
 
@@ -33,7 +33,7 @@ class RedditClient:
     ) -> None:
         if session_manager is not None:
             self._session_manager = session_manager
-        elif os.environ.get("REDDIT_USE_KEYCHAIN", "true").lower() == "true":
+        elif settings.REDDIT_USE_KEYCHAIN:
             self._session_manager = AsyncRedditSession.from_keyring()
         else:
             self._session_manager = AsyncRedditSession.from_env()

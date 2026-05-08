@@ -27,6 +27,70 @@ class Settings(BaseSettings):
         description="Log output: 'text' or 'json'",
     )
 
+    # OpenAI Authentication
+    OPENAI_USE_KEYCHAIN: bool = Field(
+        True,
+        validation_alias="OPENAI_USE_KEYCHAIN",
+        description="Use system keychain for OpenAI credentials instead of env vars",
+    )
+    OPENAI_API_KEY: str | None = Field(
+        None,
+        validation_alias="OPENAI_API_KEY",
+        description="OpenAI API key used when keychain auth is disabled",
+    )
+    OPENAI_KEYCHAIN_SERVICE: str = Field(
+        "openai-key",
+        validation_alias="OPENAI_KEYCHAIN_SERVICE",
+        description="Keychain service name for the OpenAI API key",
+    )
+    OPENAI_KEYCHAIN_LABEL: str = Field(
+        "openai-dev",
+        validation_alias="OPENAI_KEYCHAIN_LABEL",
+        description="Keychain label for the OpenAI API key",
+    )
+
+    # Reddit Authentication
+    REDDIT_USE_KEYCHAIN: bool = Field(
+        True,
+        validation_alias="REDDIT_USE_KEYCHAIN",
+        description="Use system keychain for Reddit credentials instead of env vars",
+    )
+    REDDIT_CLIENT_ID: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_ID",
+        description="Reddit client ID used when keychain auth is disabled",
+    )
+    REDDIT_CLIENT_SECRET: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_SECRET",
+        description="Reddit client secret used when keychain auth is disabled",
+    )
+    REDDIT_USER_AGENT: str = Field(
+        "Workbench/1.0 by /u/chippetto90",
+        validation_alias="REDDIT_USER_AGENT",
+        description="User-Agent header for Reddit API requests",
+    )
+    REDDIT_CLIENT_ID_SERVICE: str = Field(
+        "reddit-client-id",
+        validation_alias="REDDIT_CLIENT_ID_SERVICE",
+        description="Keychain service name for the Reddit client ID",
+    )
+    REDDIT_CLIENT_SECRET_SERVICE: str = Field(
+        "reddit-client-secret",
+        validation_alias="REDDIT_CLIENT_SECRET_SERVICE",
+        description="Keychain service name for the Reddit client secret",
+    )
+    REDDIT_USER_AGENT_SERVICE: str = Field(
+        "reddit-user-agent",
+        validation_alias="REDDIT_USER_AGENT_SERVICE",
+        description="Keychain service name for the Reddit user agent",
+    )
+    REDDIT_KEYCHAIN_LABEL: str = Field(
+        "reddit-dev",
+        validation_alias="REDDIT_KEYCHAIN_LABEL",
+        description="Keychain label for Reddit credentials",
+    )
+
     # HTTP Retry Defaults
     RETRY_MAX_ATTEMPTS: int = Field(
         3,

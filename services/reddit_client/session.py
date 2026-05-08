@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -12,16 +11,13 @@ import keyring
 
 from common.exceptions import AuthError
 from config.logging_config import get_logger
+from config.settings import settings
 
 logger = get_logger(__name__)
 
 TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
 API_BASE_URL = "https://oauth.reddit.com"
-CLIENT_ID_SERVICE = os.getenv("REDDIT_CLIENT_ID_SERVICE", "reddit-client-id")
-CLIENT_SECRET_SERVICE = os.getenv("REDDIT_CLIENT_SECRET_SERVICE", "reddit-client-secret")
-USER_AGENT_SERVICE = os.getenv("REDDIT_USER_AGENT_SERVICE", "reddit-user-agent")
-KEYCHAIN_LABEL = os.getenv("REDDIT_KEYCHAIN_LABEL", "reddit-dev")
-DEFAULT_USER_AGENT = os.getenv("REDDIT_USER_AGENT", "Workbench/1.0 by /u/chippetto90")
+DEFAULT_USER_AGENT = settings.REDDIT_USER_AGENT
 
 
 class AsyncRedditSession:
@@ -104,13 +100,20 @@ class AsyncRedditSession:
 
     @classmethod
     def from_env(cls) -> "AsyncRedditSession":
-        """Build a session using credentials from environment variables."""
-        client_id = os.environ.get("REDDIT_CLIENT_ID")
-        client_secret = os.environ.get("REDDIT_CLIENT_SECRET")
-        user_agent = os.environ.get("REDDIT_USER_AGENT", DEFAULT_USER_AGENT)
+        """Build a session using settings-backed environment credentials."""
+        client_id = settings.REDDIT_CLIENT_ID
+        client_secret = settings.REDDIT_CLIENT_SECRET
+        user_agent = settings.REDDIT_USER_AGENT
 
         if not client_id or not client_secret:
-            missing = [v for v, val in [("REDDIT_CLIENT_ID", client_id), ("REDDIT_CLIENT_SECRET", client_secret)] if not val]
+            missing = [
+                name
+                for name, value in (
+                    ("REDDIT_CLIENT_ID", client_id),
+                    ("REDDIT_CLIENT_SECRET", client_secret),
+                )
+                if not value
+            ]
             logger.error("reddit.missing_env_credentials", missing=missing)
             raise AuthError(
                 f"Missing required environment variables: {', '.join(missing)}"
@@ -122,10 +125,10 @@ class AsyncRedditSession:
     def from_keyring(
         cls,
         *,
-        client_id_service: str = CLIENT_ID_SERVICE,
-        client_secret_service: str = CLIENT_SECRET_SERVICE,
-        user_agent_service: str = USER_AGENT_SERVICE,
-        label: str = KEYCHAIN_LABEL,
+        client_id_service: str = settings.REDDIT_CLIENT_ID_SERVICE,
+        client_secret_service: str = settings.REDDIT_CLIENT_SECRET_SERVICE,
+        user_agent_service: str = settings.REDDIT_USER_AGENT_SERVICE,
+        label: str = settings.REDDIT_KEYCHAIN_LABEL,
     ) -> "AsyncRedditSession":
         """Build a session using credentials stored in the system keychain."""
         client_id = keyring.get_password(client_id_service, label)

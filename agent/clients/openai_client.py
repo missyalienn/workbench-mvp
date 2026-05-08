@@ -1,4 +1,4 @@
-"""OpenAI client factory backed by keyring credentials.
+"""OpenAI client factory backed by keyring or environment credentials.
 
 Example:
     client = get_openai_client()
@@ -7,20 +7,16 @@ Example:
 
 from __future__ import annotations
 
-import os
-
 import keyring
 import openai
 from openai import OpenAI
 
 from common.exceptions import AuthError, ExternalServiceError, ExternalTimeoutError, InvalidResponseError, RateLimitError
 from config.logging_config import get_logger
+from config.settings import settings
 
 
 logger = get_logger(__name__)
-
-OPENAI_KEYCHAIN_SERVICE = os.getenv("OPENAI_KEYCHAIN_SERVICE", "openai-key")
-OPENAI_KEYCHAIN_LABEL = os.getenv("OPENAI_KEYCHAIN_LABEL", "openai-dev")
 
 
 def translate_openai_error(exc: Exception) -> ExternalServiceError:
@@ -43,19 +39,30 @@ def translate_openai_error(exc: Exception) -> ExternalServiceError:
 
 def get_openai_client() -> OpenAI:
     """Return an authenticated OpenAI client using keyring or env credentials."""
-    if os.environ.get("OPENAI_USE_KEYCHAIN", "true").lower() == "true":
-        api_key = keyring.get_password(OPENAI_KEYCHAIN_SERVICE, OPENAI_KEYCHAIN_LABEL)
+    if settings.OPENAI_USE_KEYCHAIN:
+        api_key = keyring.get_password(
+            settings.OPENAI_KEYCHAIN_SERVICE,
+            settings.OPENAI_KEYCHAIN_LABEL,
+        )
         if not api_key:
             logger.error(
                 "openai_client.missing_credentials",
-                fix=f"Run: keyring set {OPENAI_KEYCHAIN_SERVICE} {OPENAI_KEYCHAIN_LABEL} <your-api-key>",
+                fix=(
+                    "Run: keyring set "
+                    f"{settings.OPENAI_KEYCHAIN_SERVICE} "
+                    f"{settings.OPENAI_KEYCHAIN_LABEL} <your-api-key>"
+                ),
             )
             raise AuthError(
-                f"Missing OpenAI API key in keychain (service='{OPENAI_KEYCHAIN_SERVICE}', label='{OPENAI_KEYCHAIN_LABEL}'). "
-                f"Fix: keyring set {OPENAI_KEYCHAIN_SERVICE} {OPENAI_KEYCHAIN_LABEL} <your-api-key>"
+                "Missing OpenAI API key in keychain "
+                f"(service='{settings.OPENAI_KEYCHAIN_SERVICE}', "
+                f"label='{settings.OPENAI_KEYCHAIN_LABEL}'). "
+                "Fix: keyring set "
+                f"{settings.OPENAI_KEYCHAIN_SERVICE} "
+                f"{settings.OPENAI_KEYCHAIN_LABEL} <your-api-key>"
             )
     else:
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = settings.OPENAI_API_KEY
         if not api_key:
             logger.error("openai_client.missing_env_credentials", var="OPENAI_API_KEY")
             raise AuthError("Missing required environment variable: OPENAI_API_KEY")
