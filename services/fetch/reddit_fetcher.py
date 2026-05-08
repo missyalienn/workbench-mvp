@@ -46,7 +46,7 @@ def _score_post_candidates(candidates: list[PostCandidate]) -> list[Post]:
             body=candidate.cleaned_body,
         )
         if not passed:
-            logger.info("fetch.post_rejected", reason="below_threshold", post_id=post_id)
+            logger.debug("fetch.post_rejected", reason="below_threshold", post_id=post_id)
             continue
 
         post_model = build_post_model(
@@ -83,17 +83,17 @@ async def _fetch_posts_for_pair(
         async for raw_post in client.paginate_search(subreddit=subreddit, query=term, limit=post_limit):
             post_id = raw_post.get("id")
             if not post_id:
-                logger.info("fetch.post_rejected", reason="no_id", subreddit=subreddit, term=term)
+                logger.debug("fetch.post_rejected", reason="no_id", subreddit=subreddit, term=term)
                 continue
             if not passes_post_validation(raw_post):
                 continue
             title = clean_text(raw_post.get("title", ""))
             body = clean_text(raw_post.get("selftext", ""))
             if is_post_too_short(body):
-                logger.info("fetch.post_rejected", reason="too_short", post_id=post_id)
+                logger.debug("fetch.post_rejected", reason="too_short", post_id=post_id)
                 continue
             if has_seen_post(post_id, local_seen_post_ids):
-                logger.info("fetch.post_rejected", reason="duplicate", post_id=post_id)
+                logger.debug("fetch.post_rejected", reason="duplicate", post_id=post_id)
                 continue
             filtered.append((post_id, raw_post, title, body))
     except (ExternalTimeoutError, RateLimitError, InvalidResponseError) as exc:
@@ -121,7 +121,7 @@ async def _fetch_posts_for_pair(
         )
         comment_models = build_comment_models(filtered_comments, fetched_at)
         if not comment_models:
-            logger.info("fetch.post_rejected", reason="no_comments", post_id=post_id)
+            logger.debug("fetch.post_rejected", reason="no_comments", post_id=post_id)
             continue
         candidates.append(
             PostCandidate(

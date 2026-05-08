@@ -103,6 +103,22 @@ class AsyncRedditSession:
         logger.info("reddit.session_authorized", expires_at=str(self._token_expiry))
 
     @classmethod
+    def from_env(cls) -> "AsyncRedditSession":
+        """Build a session using credentials from environment variables."""
+        client_id = os.environ.get("REDDIT_CLIENT_ID")
+        client_secret = os.environ.get("REDDIT_CLIENT_SECRET")
+        user_agent = os.environ.get("REDDIT_USER_AGENT", DEFAULT_USER_AGENT)
+
+        if not client_id or not client_secret:
+            missing = [v for v, val in [("REDDIT_CLIENT_ID", client_id), ("REDDIT_CLIENT_SECRET", client_secret)] if not val]
+            logger.error("reddit.missing_env_credentials", missing=missing)
+            raise AuthError(
+                f"Missing required environment variables: {', '.join(missing)}"
+            )
+
+        return cls(client_id=client_id, client_secret=client_secret, user_agent=user_agent)
+
+    @classmethod
     def from_keyring(
         cls,
         *,

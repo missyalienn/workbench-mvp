@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -30,7 +31,12 @@ class RedditClient:
         *,
         session_manager: AsyncRedditSession | None = None,
     ) -> None:
-        self._session_manager = session_manager or AsyncRedditSession.from_keyring()
+        if session_manager is not None:
+            self._session_manager = session_manager
+        elif os.environ.get("REDDIT_USE_KEYCHAIN", "true").lower() == "true":
+            self._session_manager = AsyncRedditSession.from_keyring()
+        else:
+            self._session_manager = AsyncRedditSession.from_env()
 
     async def _client(self) -> httpx.AsyncClient:
         return await self._session_manager.get_client()
