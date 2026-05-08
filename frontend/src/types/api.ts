@@ -9,6 +9,8 @@ export interface ClientThread {
   subreddit: string;
   url: string;
   relevance_score: number;
+  post_karma: number;
+  num_comments: number;
 }
 
 export interface ApiResponse {
