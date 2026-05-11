@@ -14,6 +14,7 @@ from openai import OpenAI
 from common.exceptions import AuthError, ExternalServiceError, ExternalTimeoutError, InvalidResponseError, RateLimitError
 from config.logging_config import get_logger
 from config.settings import settings
+from config.ssm import resolve_env_or_ssm_secret
 
 
 logger = get_logger(__name__)
@@ -62,7 +63,11 @@ def get_openai_client() -> OpenAI:
                 f"{settings.OPENAI_KEYCHAIN_LABEL} <your-api-key>"
             )
     else:
-        api_key = settings.OPENAI_API_KEY
+        api_key = resolve_env_or_ssm_secret(
+            current_value=settings.OPENAI_API_KEY,
+            ssm_parameter_name=settings.OPENAI_API_KEY_SSM_PARAMETER,
+            secret_name="OPENAI_API_KEY",
+        )
         if not api_key:
             logger.error("openai_client.missing_env_credentials", var="OPENAI_API_KEY")
             raise AuthError("Missing required environment variable: OPENAI_API_KEY")

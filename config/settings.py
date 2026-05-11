@@ -38,6 +38,11 @@ class Settings(BaseSettings):
         validation_alias="OPENAI_API_KEY",
         description="OpenAI API key used when keychain auth is disabled",
     )
+    OPENAI_API_KEY_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="OPENAI_API_KEY_SSM_PARAMETER",
+        description="SSM parameter name for the OpenAI API key in production",
+    )
     OPENAI_KEYCHAIN_SERVICE: str = Field(
         "openai-key",
         validation_alias="OPENAI_KEYCHAIN_SERVICE",
@@ -60,15 +65,30 @@ class Settings(BaseSettings):
         validation_alias="REDDIT_CLIENT_ID",
         description="Reddit client ID used when keychain auth is disabled",
     )
+    REDDIT_CLIENT_ID_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_ID_SSM_PARAMETER",
+        description="SSM parameter name for the Reddit client ID in production",
+    )
     REDDIT_CLIENT_SECRET: str | None = Field(
         None,
         validation_alias="REDDIT_CLIENT_SECRET",
         description="Reddit client secret used when keychain auth is disabled",
     )
+    REDDIT_CLIENT_SECRET_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_SECRET_SSM_PARAMETER",
+        description="SSM parameter name for the Reddit client secret in production",
+    )
     REDDIT_USER_AGENT: str = Field(
         "Workbench/1.0 by /u/chippetto90",
         validation_alias="REDDIT_USER_AGENT",
         description="User-Agent header for Reddit API requests",
+    )
+    REDDIT_USER_AGENT_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="REDDIT_USER_AGENT_SSM_PARAMETER",
+        description="SSM parameter name for the Reddit user agent in production",
     )
     REDDIT_CLIENT_ID_SERVICE: str = Field(
         "reddit-client-id",
@@ -89,6 +109,18 @@ class Settings(BaseSettings):
         "reddit-dev",
         validation_alias="REDDIT_KEYCHAIN_LABEL",
         description="Keychain label for Reddit credentials",
+    )
+
+    # Internal Proxy Authentication
+    PROXY_TOKEN: str | None = Field(
+        None,
+        validation_alias="PROXY_TOKEN",
+        description="Shared token used to authorize server-side proxy requests",
+    )
+    PROXY_TOKEN_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="PROXY_TOKEN_SSM_PARAMETER",
+        description="SSM parameter name for the shared proxy token in production",
     )
 
     # HTTP Retry Defaults

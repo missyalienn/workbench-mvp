@@ -12,12 +12,13 @@ import keyring
 from common.exceptions import AuthError
 from config.logging_config import get_logger
 from config.settings import settings
+from config.ssm import resolve_env_or_ssm_secret
 
 logger = get_logger(__name__)
 
 TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
 API_BASE_URL = "https://oauth.reddit.com"
-DEFAULT_USER_AGENT = settings.REDDIT_USER_AGENT
+DEFAULT_USER_AGENT = "Workbench/1.0 by /u/chippetto90"
 
 
 class AsyncRedditSession:
@@ -101,9 +102,23 @@ class AsyncRedditSession:
     @classmethod
     def from_env(cls) -> "AsyncRedditSession":
         """Build a session using settings-backed environment credentials."""
-        client_id = settings.REDDIT_CLIENT_ID
-        client_secret = settings.REDDIT_CLIENT_SECRET
+        client_id = resolve_env_or_ssm_secret(
+            current_value=settings.REDDIT_CLIENT_ID,
+            ssm_parameter_name=settings.REDDIT_CLIENT_ID_SSM_PARAMETER,
+            secret_name="REDDIT_CLIENT_ID",
+        )
+        client_secret = resolve_env_or_ssm_secret(
+            current_value=settings.REDDIT_CLIENT_SECRET,
+            ssm_parameter_name=settings.REDDIT_CLIENT_SECRET_SSM_PARAMETER,
+            secret_name="REDDIT_CLIENT_SECRET",
+        )
         user_agent = settings.REDDIT_USER_AGENT
+        if settings.REDDIT_USER_AGENT_SSM_PARAMETER and user_agent == DEFAULT_USER_AGENT:
+            user_agent = resolve_env_or_ssm_secret(
+                current_value=None,
+                ssm_parameter_name=settings.REDDIT_USER_AGENT_SSM_PARAMETER,
+                secret_name="REDDIT_USER_AGENT",
+            ) or DEFAULT_USER_AGENT
 
         if not client_id or not client_secret:
             missing = [

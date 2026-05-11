@@ -1,7 +1,10 @@
+from hmac import compare_digest
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from mangum import Mangum
 from pydantic import BaseModel, field_validator
 
 from api.errors import (
@@ -20,12 +23,15 @@ from api.models import EvidenceResponse
 from api.pipeline import run_pipeline
 from common.exceptions import ExternalServiceError, PlannerError
 from config.logging_config import configure_logging, get_logger
+from config.settings import settings
+from config.ssm import resolve_env_or_ssm_secret
 
 # To start the FastAPI app, run:
 # uvicorn api.app:app --reload
 
 configure_logging()
 logger = get_logger(__name__)
+PROXY_TOKEN_HEADER = "X-Workbench-Proxy-Token"
 
 app = FastAPI()
 app.add_middleware(
@@ -50,6 +56,22 @@ class QueryRequest(BaseModel):
 
 def _trace_id(request: Request) -> str | None:
     return request.headers.get("traceparent")
+
+
+def _is_proxy_request_authorized(request: Request) -> bool:
+    configured_token = resolve_env_or_ssm_secret(
+        current_value=settings.PROXY_TOKEN,
+        ssm_parameter_name=settings.PROXY_TOKEN_SSM_PARAMETER,
+        secret_name="PROXY_TOKEN",
+    )
+    if not configured_token:
+        return True
+
+    provided_token = request.headers.get(PROXY_TOKEN_HEADER)
+    if not provided_token:
+        return False
+
+    return compare_digest(provided_token, configured_token)
 
 
 # --- Exception handlers ---
@@ -132,6 +154,11 @@ def read_root():
     return {"message": "Hello, World!"}
 
 
+@app.get("/healthz")
+def healthcheck() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.post(
     "/api/run",
     response_model=EvidenceResponse,
@@ -142,4 +169,13 @@ def read_root():
     },
 )
 async def run(body: QueryRequest, request: Request) -> EvidenceResponse:
+    if not _is_proxy_request_authorized(request):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized"},
+        )
+
     return await run_pipeline(body.query)
+
+
+handler = Mangum(app)

@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api.app import app
+from api.app import PROXY_TOKEN_HEADER, app
 from api.errors import (
     EXTERNAL_SERVICE_FAILURE,
     INTERNAL_SERVER_ERROR,
@@ -101,6 +101,70 @@ def test_missing_query_field_returns_422() -> None:
 # --- Happy path ---
 
 
+def test_healthcheck_returns_ok() -> None:
+    response = client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_run_rejects_missing_proxy_token_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("api.app.settings.PROXY_TOKEN", "expected-token")
+
+    response = client.post("/api/run", json={"query": "valid query"})
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Unauthorized"}
+
+
+def test_run_rejects_incorrect_proxy_token_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("api.app.settings.PROXY_TOKEN", "expected-token")
+
+    response = client.post(
+        "/api/run",
+        json={"query": "valid query"},
+        headers={PROXY_TOKEN_HEADER: "wrong-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Unauthorized"}
+
+
+def test_run_accepts_ssm_loaded_proxy_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("api.app.settings.PROXY_TOKEN", None)
+    monkeypatch.setattr("api.app.settings.PROXY_TOKEN_SSM_PARAMETER", "/workbench/prod/proxy_token")
+    monkeypatch.setattr(
+        "api.app.resolve_env_or_ssm_secret",
+        lambda **kwargs: "expected-token",
+    )
+
+    mock_result = EvidenceResponse(
+        search_plan=SearchPlan(search_terms=["squeaky floor fix"], subreddits=["DIY"]),
+        status="ok",
+        summary="Most threads recommend injecting construction adhesive between the subfloor and joist.",
+        threads=[
+            ClientThread(
+                rank=1,
+                title="Fix squeaky floor without removing carpet",
+                subreddit="DIY",
+                url="https://www.reddit.com/r/DIY/comments/abc123/",
+                relevance_score=0.91,
+                post_karma=250,
+                num_comments=18,
+            )
+        ],
+        limitations=[],
+    )
+    with patch(_PIPELINE, return_value=mock_result):
+        response = client.post(
+            "/api/run",
+            json={"query": "how to fix a squeaky floor"},
+            headers={PROXY_TOKEN_HEADER: "expected-token"},
+        )
+
+    assert response.status_code == 200
+
+
 def test_successful_request_returns_pipeline_result() -> None:
     mock_result = EvidenceResponse(
         search_plan=SearchPlan(search_terms=["squeaky floor fix"], subreddits=["DIY"]),
@@ -120,7 +184,11 @@ def test_successful_request_returns_pipeline_result() -> None:
         limitations=[],
     )
     with patch(_PIPELINE, return_value=mock_result):
-        response = client.post("/api/run", json={"query": "how to fix a squeaky floor"})
+        response = client.post(
+            "/api/run",
+            json={"query": "how to fix a squeaky floor"},
+            headers={PROXY_TOKEN_HEADER: "expected-token"},
+        )
 
     assert response.status_code == 200
     body = response.json()

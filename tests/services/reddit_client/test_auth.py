@@ -79,3 +79,35 @@ def test_reddit_session_from_keyring_raises_without_credentials(
 
     assert "Missing Reddit API credentials in keychain" in str(excinfo.value)
     assert settings.REDDIT_KEYCHAIN_LABEL in str(excinfo.value)
+
+
+def test_reddit_session_from_env_uses_ssm_when_env_credentials_are_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "REDDIT_CLIENT_ID", None)
+    monkeypatch.setattr(settings, "REDDIT_CLIENT_SECRET", None)
+    monkeypatch.setattr(settings, "REDDIT_CLIENT_ID_SSM_PARAMETER", "/workbench/prod/reddit_client_id")
+    monkeypatch.setattr(settings, "REDDIT_CLIENT_SECRET_SSM_PARAMETER", "/workbench/prod/reddit_client_secret")
+    monkeypatch.setattr(settings, "REDDIT_USER_AGENT", "Workbench/1.0 by /u/chippetto90")
+    monkeypatch.setattr(settings, "REDDIT_USER_AGENT_SSM_PARAMETER", "/workbench/prod/reddit_user_agent")
+
+    def _resolve_secret(**kwargs: str | None) -> str | None:
+        secret_name = kwargs["secret_name"]
+        if secret_name == "REDDIT_CLIENT_ID":
+            return "ssm-client-id"
+        if secret_name == "REDDIT_CLIENT_SECRET":
+            return "ssm-client-secret"
+        if secret_name == "REDDIT_USER_AGENT":
+            return "ssm-user-agent"
+        return None
+
+    monkeypatch.setattr(
+        "services.reddit_client.session.resolve_env_or_ssm_secret",
+        _resolve_secret,
+    )
+
+    session = AsyncRedditSession.from_env()
+
+    assert session.client_id == "ssm-client-id"
+    assert session.client_secret == "ssm-client-secret"
+    assert session.user_agent == "ssm-user-agent"

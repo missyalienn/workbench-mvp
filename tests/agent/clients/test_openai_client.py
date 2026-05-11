@@ -37,3 +37,23 @@ def test_get_openai_client_raises_without_env_credentials(
         get_openai_client()
 
     assert "Missing required environment variable: OPENAI_API_KEY" in str(excinfo.value)
+
+
+def test_get_openai_client_uses_ssm_when_env_credentials_are_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "OPENAI_USE_KEYCHAIN", False)
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+    monkeypatch.setattr(settings, "OPENAI_API_KEY_SSM_PARAMETER", "/workbench/prod/openai_api_key")
+    monkeypatch.setattr(
+        "agent.clients.openai_client.resolve_env_or_ssm_secret",
+        lambda **kwargs: "ssm-openai-key",
+    )
+    monkeypatch.setattr(
+        "agent.clients.openai_client.OpenAI",
+        lambda api_key: {"api_key": api_key},
+    )
+
+    client = get_openai_client()
+
+    assert client == {"api_key": "ssm-openai-key"}
