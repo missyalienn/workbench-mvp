@@ -1,6 +1,6 @@
 import type { ApiResponse, ApiError } from "../types/api";
 
-const DEMO_ENDPOINT_URL = "http://localhost:8000/api/run";
+const DEMO_ENDPOINT_PATH = "/api/run";
 const TIMEOUT_MS = 60000;
 
 export async function submitDemoQuery(
@@ -10,7 +10,7 @@ export async function submitDemoQuery(
   const requestTimeoutId = setTimeout(() => requestAbortController.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(DEMO_ENDPOINT_URL, {
+    const response = await fetch(DEMO_ENDPOINT_PATH, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
