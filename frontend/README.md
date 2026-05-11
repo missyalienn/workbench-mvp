@@ -1,73 +1,33 @@
-# React + TypeScript + Vite
+# Frontend Notes
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This frontend is the current Workbench app surface.
 
-Currently, two official plugins are available:
+It is not the long-term marketing or landing page. If a separate public landing page is added later, this app should live behind a dedicated app route such as `/app`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Naming Direction
 
-## React Compiler
+Current component names still use `landing` in several places. That is stale.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Preferred naming direction:
+- `WorkbenchLanding` -> `WorkbenchApp`
+- `components/landing/` -> `components/app/`
+- `LandingSearchForm` -> `AppSearchForm`
 
-## Expanding the ESLint configuration
+`App.tsx` should remain the React root component and does not need to be renamed.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Deployment Boundary
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+The browser must never call AWS Lambda directly.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Expected deployed request path:
+- browser calls the Vercel app origin
+- Vercel server-side function forwards requests to Lambda
+- Lambda validates a server-side shared secret
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+No Lambda URL or backend secret should appear in client-side code.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Access Model
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The deployed app route is expected to be password protected.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+That password gate controls access to the app surface itself. It is separate from the backend protection between Vercel and Lambda.
