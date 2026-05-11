@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { WorkbenchResult } from "./components/landing/types";
+import type { WorkbenchResult } from "./components/app/types";
 import { submitDemoQuery } from "./services/api";
-import { WorkbenchLanding } from "./components/WorkbenchLanding";
+import { WorkbenchApp } from "./components/WorkbenchApp";
 
 function App() {
   const [results, setResults] = useState<WorkbenchResult[]>([]);
@@ -54,7 +54,7 @@ function App() {
   };
 
   return (
-    <WorkbenchLanding
+    <WorkbenchApp
       results={results}
       isLoading={isLoading}
       errorMessage={errorMessage}

@@ -6,12 +6,10 @@ It is not the long-term marketing or landing page. If a separate public landing 
 
 ## Naming Direction
 
-Current component names still use `landing` in several places. That is stale.
-
-Preferred naming direction:
-- `WorkbenchLanding` -> `WorkbenchApp`
-- `components/landing/` -> `components/app/`
-- `LandingSearchForm` -> `AppSearchForm`
+Frontend naming now reflects the app surface:
+- `WorkbenchApp`
+- `components/app/`
+- `AppSearchForm`
 
 `App.tsx` should remain the React root component and does not need to be renamed.
 
@@ -24,7 +22,7 @@ Expected deployed request path:
 - Vercel server-side function forwards requests to Lambda
 - Lambda validates a server-side shared secret
 
-No Lambda URL or backend secret should appear in client-side code.
+No Lambda URL or proxy token should appear in client-side code.
 
 ## Access Model
 
