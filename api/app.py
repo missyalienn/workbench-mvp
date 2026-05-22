@@ -32,11 +32,12 @@ from config.ssm import resolve_env_or_ssm_secret
 configure_logging()
 logger = get_logger(__name__)
 PROXY_TOKEN_HEADER = "X-Workbench-Proxy-Token"
+LIVE_RUNS_DISABLED_MESSAGE = "Live runs are currently disabled."
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[settings.ALLOWED_ORIGIN],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -72,6 +73,10 @@ def _is_proxy_request_authorized(request: Request) -> bool:
         return False
 
     return compare_digest(provided_token, configured_token)
+
+
+def _live_runs_enabled() -> bool:
+    return settings.LIVE_RUNS_ENABLED
 
 
 # --- Exception handlers ---
@@ -169,6 +174,12 @@ def healthcheck() -> dict[str, str]:
     },
 )
 async def run(body: QueryRequest, request: Request) -> EvidenceResponse:
+    if not _live_runs_enabled():
+        return JSONResponse(
+            status_code=503,
+            content={"detail": LIVE_RUNS_DISABLED_MESSAGE},
+        )
+
     if not _is_proxy_request_authorized(request):
         return JSONResponse(
             status_code=401,

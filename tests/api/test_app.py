@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api.app import PROXY_TOKEN_HEADER, app
+from api.app import LIVE_RUNS_DISABLED_MESSAGE, PROXY_TOKEN_HEADER, app
 from api.errors import (
     EXTERNAL_SERVICE_FAILURE,
     INTERNAL_SERVER_ERROR,
@@ -131,6 +131,7 @@ def test_run_rejects_incorrect_proxy_token_when_configured(monkeypatch: pytest.M
 
 
 def test_run_accepts_ssm_loaded_proxy_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("api.app.settings.LIVE_RUNS_ENABLED", True)
     monkeypatch.setattr("api.app.settings.PROXY_TOKEN", None)
     monkeypatch.setattr("api.app.settings.PROXY_TOKEN_SSM_PARAMETER", "/workbench/prod/proxy_token")
     monkeypatch.setattr(
@@ -165,7 +166,18 @@ def test_run_accepts_ssm_loaded_proxy_token(monkeypatch: pytest.MonkeyPatch) -> 
     assert response.status_code == 200
 
 
-def test_successful_request_returns_pipeline_result() -> None:
+def test_run_returns_503_when_live_runs_are_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("api.app.settings.LIVE_RUNS_ENABLED", False)
+
+    response = client.post("/api/run", json={"query": "valid query"})
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": LIVE_RUNS_DISABLED_MESSAGE}
+
+
+def test_successful_request_returns_pipeline_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("api.app.settings.LIVE_RUNS_ENABLED", True)
+    monkeypatch.setattr("api.app.settings.PROXY_TOKEN", None)
     mock_result = EvidenceResponse(
         search_plan=SearchPlan(search_terms=["squeaky floor fix"], subreddits=["DIY"]),
         status="ok",

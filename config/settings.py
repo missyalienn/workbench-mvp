@@ -27,6 +27,18 @@ class Settings(BaseSettings):
         description="Log output: 'text' or 'json'",
     )
 
+    # API Runtime Controls
+    LIVE_RUNS_ENABLED: bool = Field(
+        True,
+        validation_alias="LIVE_RUNS_ENABLED",
+        description="Allow live pipeline execution for POST /api/run requests",
+    )
+    ALLOWED_ORIGIN: str = Field(
+        "http://localhost:5173",
+        validation_alias="ALLOWED_ORIGIN",
+        description="Allowed browser origin for CORS",
+    )
+
     # OpenAI Authentication
     OPENAI_USE_KEYCHAIN: bool = Field(
         True,
@@ -183,7 +195,7 @@ class Settings(BaseSettings):
     EMBEDDING_CACHE_PATH: str = Field(
         "data/embedding_cache.sqlite3",
         validation_alias="EMBEDDING_CACHE_PATH",
-        description="SQLite path for embedding cache",
+        description="SQLite path for embedding cache; use a writable path such as /tmp/... in Lambda",
     )
     MAX_EMBED_TEXT_CHARS: int = Field(
         4000,
