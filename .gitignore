@@ -57,6 +57,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.lambda-build/
+.lambda-requirements.txt
+workbench-prod-api.zip
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
