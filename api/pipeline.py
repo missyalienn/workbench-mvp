@@ -2,11 +2,12 @@
 
 Usage:
     from api.pipeline import run_evidence_pipeline
-    result = run_evidence_pipeline("how to caulk bathtub")
+    result = await run_evidence_pipeline("how to caulk bathtub")
 """
 
 from __future__ import annotations
 
+import asyncio
 import time
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -21,7 +22,8 @@ from services.synthesizer.config import EvidenceOutputConfig
 from services.synthesizer.llm_execution.llm_client import OpenAILLMClient
 from services.synthesizer.llm_execution.prompt_builder import build_messages
 from services.synthesizer.llm_execution.types import PromptMessage
-from services.synthesizer.models import EvidenceRequest, EvidenceResult
+from api.models import ClientThread, EvidenceResponse, SearchPlan
+from services.synthesizer.models import EvidenceRequest, EvidenceResult, PostPayload
 from services.synthesizer.stage_summary import (
     build_stage_diagnostics,
     summarize_evidence_result,
@@ -54,8 +56,6 @@ def _build_context_builder_config(cfg: dict[str, Any]) -> ContextBuilderConfig:
 def _build_curator_config(cfg: dict[str, Any]) -> EvidenceOutputConfig:
     return EvidenceOutputConfig(
         summary_char_budget=cfg["summary_char_budget"],
-        max_highlights=cfg["max_highlights"],
-        max_cautions=cfg["max_cautions"],
     )
 
 
@@ -90,14 +90,13 @@ class _PipelineRun(NamedTuple):
     result: EvidenceResult
 
 
-def _run_pipeline(
+async def _run_pipeline(
     query: str,
     config_path: Path | None,
 ) -> _PipelineRun:
     cfg = _load_config(config_path or DEFAULT_CONFIG_PATH)
     selector_cfg = _build_context_builder_config(cfg)
     curator_cfg = _build_curator_config(cfg)
-    openai_env = cfg.get("openai_environment", "openai-dev")
     planner_model = cfg.get("planner_model", "gpt-4.1-mini")
     summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
@@ -105,27 +104,30 @@ def _run_pipeline(
     t0 = time.monotonic()
     logger.info(
         "pipeline.start",
+        query_preview=query[:80],
         planner_model=planner_model,
         summarizer_model=summarizer_model,
         prompt_version=prompt_version,
     )
 
-    plan = create_search_plan(query, model=planner_model)
+    plan = await asyncio.to_thread(create_search_plan, query, model=planner_model)
 
     with plan_context_scope(str(plan.plan_id)):
-        fetch_result = run_reddit_fetcher(plan=plan, post_limit=post_limit)
+        fetch_result = await run_reddit_fetcher(plan=plan, post_limit=post_limit)
         request = _build_request(fetch_result, selector_cfg, curator_cfg, prompt_version)
         messages = _build_messages(request)
 
-        client = get_openai_client(environment=openai_env)
+        client = get_openai_client()
         llm_client = OpenAILLMClient(client=client, model=summarizer_model)
-        result = _summarize(llm_client, messages)
+        result = await asyncio.to_thread(llm_client.summarize_structured, messages=messages)
 
         logger.info(
             "pipeline.complete",
             elapsed_ms=int((time.monotonic() - t0) * 1000),
             status=result.status,
-            n_threads=len(result.threads) if result.threads else 0,
+            summary=result.summary,
+            limitations=result.limitations,
+            n_threads=len(request.post_payloads),
         )
 
         return _PipelineRun(
@@ -138,30 +140,67 @@ def _run_pipeline(
  
 
 
-def run_evidence_pipeline(
+def _build_client_threads(post_payloads: list[PostPayload]) -> list[ClientThread]:
+    return [
+        ClientThread(
+            rank=index,
+            title=post.title,
+            subreddit=post.subreddit,
+            url=post.url,
+            relevance_score=post.relevance_score,
+            post_karma=post.post_karma,
+            num_comments=post.num_comments,
+        )
+        for index, post in enumerate(post_payloads, start=1)
+    ]
+
+
+def _to_client_response(plan: Any, request: EvidenceRequest, result: EvidenceResult) -> EvidenceResponse:
+    threads = _build_client_threads(request.post_payloads)
+    logger.debug(
+        "pipeline.response_preview",
+        n_threads=len(threads),
+        threads=[
+            {
+                "rank": thread.rank,
+                "title": thread.title,
+                "subreddit": thread.subreddit,
+                "relevance_score": thread.relevance_score,
+                "post_karma": thread.post_karma,
+                "num_comments": thread.num_comments,
+            }
+            for thread in threads
+        ],
+    )
+    return EvidenceResponse(
+        search_plan=SearchPlan(
+            search_terms=plan.search_terms,
+            subreddits=plan.subreddits,
+        ),
+        status=result.status,
+        summary=result.summary,
+        threads=threads,
+        limitations=result.limitations,
+    )
+
+
+async def run_pipeline(
     query: str,
     *,
     config_path: Path | None = None,
-) -> dict[str, Any]:
-    """Run the evidence pipeline for a single query and return evidence + plan info."""
-    plan, _, _, result = _run_pipeline(query, config_path)
-    return {
-        "search_plan": {
-            "search_terms": plan.search_terms,
-            "subreddits": plan.subreddits,
-            "notes": plan.notes,
-        },
-        "evidence_result": result,
-    }
+) -> EvidenceResponse:
+    """Run the evidence pipeline for a single query and return the client response."""
+    plan, _, request, result = await _run_pipeline(query, config_path)
+    return _to_client_response(plan, request, result)
 
 
-def pipeline_stage_summary(
+async def pipeline_stage_summary(
     query: str,
     *,
     config_path: Path | None = None,
 ) -> dict[str, Any]:
     """Run the evidence pipeline and return stage-boundary summaries only."""
-    plan, fetch_result, request, result = _run_pipeline(query, config_path)
+    plan, fetch_result, request, result = await _run_pipeline(query, config_path)
     fetch_result_summary = summarize_fetch_result(fetch_result)
     llm_context_summary = summarize_llm_context(request)
     evidence_result_summary = summarize_evidence_result(result)
@@ -175,7 +214,6 @@ def pipeline_stage_summary(
         "search_plan": {
             "search_terms": plan.search_terms,
             "subreddits": plan.subreddits,
-            "notes": plan.notes,
         },
         "fetch_result_summary": fetch_result_summary,
         "llm_context_summary": llm_context_summary,

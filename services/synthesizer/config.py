@@ -12,8 +12,6 @@ class EvidenceOutputConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     summary_char_budget: PositiveInt = Field(..., description="Maximum allowed characters in the summary")
-    max_highlights: PositiveInt = Field(..., description="Maximum highlight items permitted")
-    max_cautions: PositiveInt = Field(..., description="Maximum caution items permitted")
 
 
 __all__ = ["EvidenceOutputConfig"]

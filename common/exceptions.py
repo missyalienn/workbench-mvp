@@ -29,3 +29,7 @@ class ExternalTimeoutError(ExternalServiceError):
 
 class InvalidResponseError(ExternalServiceError):
     """An external service returned an invalid, unparseable, or contract-violating response."""
+
+
+class PlannerError(Exception):
+    """The planner could not produce a valid search plan for the given query."""

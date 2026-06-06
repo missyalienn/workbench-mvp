@@ -12,6 +12,7 @@ from .model import SearchPlan
 from .prompt_templates import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from config.logging_config import get_logger, plan_context_scope
 from agent.clients.openai_client import get_openai_client, translate_openai_error
+from common.exceptions import PlannerError
 
 logger = get_logger(__name__)
 
@@ -57,7 +58,7 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
     # Wrap all operations in plan_id context for traceability
     with plan_context_scope(plan_id_str):
         t0 = time.monotonic()
-        logger.info("planner.start", query=user_query)
+        logger.info("planner.start")
         logger.debug("planner.plan_id_generated", plan_id=plan_id_str)
 
         try:
@@ -91,11 +92,13 @@ def create_search_plan(user_query: str, model: str = "gpt-4.1-mini") -> SearchPl
             # Create SearchPlan (Pydantic validates)
             plan = SearchPlan(query=user_query, **response_dict)
 
-            logger.info("planner.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_terms=len(plan.search_terms), n_subreddits=len(plan.subreddits))
-            logger.debug("planner.plan_details", search_terms=plan.search_terms, subreddits=plan.subreddits, notes=plan.notes)
+            logger.info("planner.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_terms=len(plan.search_terms), n_subreddits=len(plan.subreddits), search_terms=plan.search_terms, subreddits=plan.subreddits)
 
             return plan
 
+        except ValidationError as e:
+            logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
+            raise PlannerError("Query could not be planned") from e
         except Exception as e:
             logger.error("planner.failed", elapsed_ms=int((time.monotonic() - t0) * 1000), error=str(e), exc_type=type(e).__name__)
             raise translate_openai_error(e) from e

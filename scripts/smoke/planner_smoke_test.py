@@ -45,12 +45,11 @@ def run(
         try:
             plan = create_search_plan(query)
             logger.info(
-                'Plan OK [plan_id=%s] query="%s" terms=%s subs=%s notes="%s"',
+                'Plan OK [plan_id=%s] query="%s" terms=%s subs=%s',
                 plan.plan_id,
                 plan.query,
                 plan.search_terms,
                 plan.subreddits,
-                plan.notes,
             )
         except Exception as exc:
             logger.error("Planner failed for query %s: %s", query, exc, exc_info=debug)

@@ -94,6 +94,19 @@ def build_context_request(
     logger.info("context.start", n_posts_available=len(fetch_result.posts or []))
     selected_posts = select_posts(fetch_result, cfg)
     post_payloads = [build_post_payload(post, cfg) for post in selected_posts]
+    logger.debug(
+        "context.payload_summary",
+        n_posts=len(post_payloads),
+        posts=[
+            {
+                "post_id": payload.post_id,
+                "relevance_score": payload.relevance_score,
+                "post_karma": payload.post_karma,
+                "num_comments": payload.num_comments,
+            }
+            for payload in post_payloads
+        ],
+    )
     logger.info("context.complete", elapsed_ms=int((time.monotonic() - t0) * 1000), n_posts=len(post_payloads))
 
     return EvidenceRequest(
@@ -106,6 +119,4 @@ def build_context_request(
         max_post_chars=cfg.max_post_chars,
         max_comment_chars=cfg.max_comment_chars,
         summary_char_budget=summarizer_cfg.summary_char_budget,
-        max_highlights=summarizer_cfg.max_highlights,
-        max_cautions=summarizer_cfg.max_cautions,
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import json
 from datetime import datetime, UTC
@@ -81,11 +82,11 @@ def run(
             continue
 
         try:
-            fetch_result = run_reddit_fetcher(
+            fetch_result = asyncio.run(run_reddit_fetcher(
                 plan=plan,
                 post_limit=post_limit,
                 environment=environment,
-            )
+            ))
         except Exception as exc:
             logger.error("Fetcher failed for query '%s': %s", query, exc)
             summary.append(

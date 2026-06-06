@@ -1,4 +1,13 @@
 # CLAUDE.md
+> Extends ~/.claude/CLAUDE.md. Do not repeat global rules here.
+
+## Stack
+- Language: Python 3.12+
+- Framework: FastAPI
+- Package manager: uv / pyproject.toml
+- Test runner: pytest
+- Linter / formatter: ruff, black
+- Type checker: mypy
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 

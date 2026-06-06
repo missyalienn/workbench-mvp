@@ -46,7 +46,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -57,6 +57,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.lambda-build/
+.lambda-requirements.txt
+workbench-prod-api.zip
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -233,3 +236,4 @@ z_archive/
 
 # Legacy sandbox (kept locally, untracked)
 z_legacy/
+.claude/

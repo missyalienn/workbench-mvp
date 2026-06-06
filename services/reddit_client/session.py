@@ -1,37 +1,34 @@
-"""Manage creation and configuration of Reddit API sessions (OAuth, headers)."""
+"""Manage creation and configuration of async Reddit API sessions (OAuth, headers)."""
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-import os
+import httpx
 import keyring
-import requests
-from requests import Session
-from requests.auth import HTTPBasicAuth
 
 from common.exceptions import AuthError
 from config.logging_config import get_logger
+from config.settings import settings
+from config.ssm import resolve_env_or_ssm_secret
 
 logger = get_logger(__name__)
 
 TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
 API_BASE_URL = "https://oauth.reddit.com"
-CLIENT_ID_SERVICE = os.getenv("REDDIT_CLIENT_ID_SERVICE", "reddit-client-id")
-CLIENT_SECRET_SERVICE = os.getenv("REDDIT_CLIENT_SECRET_SERVICE", "reddit-client-secret")
-USER_AGENT_SERVICE = os.getenv("REDDIT_USER_AGENT_SERVICE", "reddit-user-agent")
-KEYCHAIN_LABEL = os.getenv("REDDIT_KEYCHAIN_LABEL", "reddit-dev")
-DEFAULT_USER_AGENT = os.getenv("REDDIT_USER_AGENT", "Workbench/1.0 by /u/chippetto90")
+DEFAULT_USER_AGENT = "Workbench/1.0 by /u/chippetto90"
 
-class RedditSession:
+
+class AsyncRedditSession:
     """
-    Manages Reddit API authentication and session lifecycle.
+    Manages Reddit API authentication and async session lifecycle.
 
     Usage:
-        session_mgr = RedditSession.from_keyring()
-        session = session_mgr.get_session()
-        response = session.get(f"{API_BASE_URL}/r/diy/search", params={"q": "sanding"})
+        session_mgr = AsyncRedditSession.from_keyring()
+        client = await session_mgr.get_client()
+        response = await client.get(f"{API_BASE_URL}/r/diy/search", params={"q": "sanding"})
     """
 
     def __init__(
@@ -46,42 +43,45 @@ class RedditSession:
         self.user_agent = user_agent
         self.token_refresh_buffer = token_refresh_buffer
 
-        self.session: Session = requests.Session()
-        self._token: Optional[str] = None
-        self._token_expiry: Optional[datetime] = None
-        self.session.headers.update(
-            {
+        self._client = httpx.AsyncClient(
+            headers={
                 "User-Agent": self.user_agent,
                 "Accept": "application/json",
             }
         )
+        self._token: Optional[str] = None
+        self._token_expiry: Optional[datetime] = None
+        self._lock = asyncio.Lock()
 
-    # ------------------------------------------------------------------
+    async def get_client(self) -> httpx.AsyncClient:
+        """Return a valid, authorized client (refresh token if needed)."""
+        if not self._token_expired():
+            return self._client
+        async with self._lock:
+            if self._token_expired():
+                await self._refresh_token()
+        return self._client
 
-    def get_session(self) -> requests.Session:
-        """Return a valid, authorized session (refresh token if needed)."""
-        if self._token_expired():
-            self._refresh_token()
-        return self.session
-
-    # ------------------------------------------------------------------
+    async def aclose(self) -> None:
+        await self._client.aclose()
 
     def _token_expired(self) -> bool:
         if not self._token or not self._token_expiry:
             return True
         return datetime.now(timezone.utc) >= self._token_expiry
 
-    def _refresh_token(self) -> None:
+    async def _refresh_token(self) -> None:
         """Refresh Reddit OAuth token."""
         logger.info("reddit.token_refresh")
         try:
-            response = requests.post(
-                TOKEN_URL,
-                auth=HTTPBasicAuth(self.client_id, self.client_secret),
-                data={"grant_type": "client_credentials"},
-                headers={"User-Agent": self.user_agent},
-                timeout=10,
-            )
+            async with httpx.AsyncClient() as tmp:
+                response = await tmp.post(
+                    TOKEN_URL,
+                    auth=(self.client_id, self.client_secret),
+                    data={"grant_type": "client_credentials"},
+                    headers={"User-Agent": self.user_agent},
+                    timeout=10,
+                )
             response.raise_for_status()
         except Exception as exc:
             raise AuthError(f"Failed to fetch token: {exc}") from exc
@@ -96,19 +96,55 @@ class RedditSession:
         self._token_expiry = datetime.now(timezone.utc) + timedelta(
             seconds=expires_in - self.token_refresh_buffer
         )
-
-        self.session.headers.update({"Authorization": f"Bearer {self._token}"})
+        self._client.headers["Authorization"] = f"Bearer {self._token}"
         logger.info("reddit.session_authorized", expires_at=str(self._token_expiry))
+
+    @classmethod
+    def from_env(cls) -> "AsyncRedditSession":
+        """Build a session using settings-backed environment credentials."""
+        client_id = resolve_env_or_ssm_secret(
+            current_value=settings.REDDIT_CLIENT_ID,
+            ssm_parameter_name=settings.REDDIT_CLIENT_ID_SSM_PARAMETER,
+            secret_name="REDDIT_CLIENT_ID",
+        )
+        client_secret = resolve_env_or_ssm_secret(
+            current_value=settings.REDDIT_CLIENT_SECRET,
+            ssm_parameter_name=settings.REDDIT_CLIENT_SECRET_SSM_PARAMETER,
+            secret_name="REDDIT_CLIENT_SECRET",
+        )
+        user_agent = settings.REDDIT_USER_AGENT
+        if settings.REDDIT_USER_AGENT_SSM_PARAMETER and user_agent == DEFAULT_USER_AGENT:
+            user_agent = resolve_env_or_ssm_secret(
+                current_value=None,
+                ssm_parameter_name=settings.REDDIT_USER_AGENT_SSM_PARAMETER,
+                secret_name="REDDIT_USER_AGENT",
+            ) or DEFAULT_USER_AGENT
+
+        if not client_id or not client_secret:
+            missing = [
+                name
+                for name, value in (
+                    ("REDDIT_CLIENT_ID", client_id),
+                    ("REDDIT_CLIENT_SECRET", client_secret),
+                )
+                if not value
+            ]
+            logger.error("reddit.missing_env_credentials", missing=missing)
+            raise AuthError(
+                f"Missing required environment variables: {', '.join(missing)}"
+            )
+
+        return cls(client_id=client_id, client_secret=client_secret, user_agent=user_agent)
 
     @classmethod
     def from_keyring(
         cls,
         *,
-        client_id_service: str = CLIENT_ID_SERVICE,
-        client_secret_service: str = CLIENT_SECRET_SERVICE,
-        user_agent_service: str = USER_AGENT_SERVICE,
-        label: str = KEYCHAIN_LABEL,
-    ) -> "RedditSession":
+        client_id_service: str = settings.REDDIT_CLIENT_ID_SERVICE,
+        client_secret_service: str = settings.REDDIT_CLIENT_SECRET_SERVICE,
+        user_agent_service: str = settings.REDDIT_USER_AGENT_SERVICE,
+        label: str = settings.REDDIT_KEYCHAIN_LABEL,
+    ) -> "AsyncRedditSession":
         """Build a session using credentials stored in the system keychain."""
         client_id = keyring.get_password(client_id_service, label)
         client_secret = keyring.get_password(client_secret_service, label)

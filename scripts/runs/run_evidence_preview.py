@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import time
@@ -20,7 +21,7 @@ if __package__ is None or __package__ == "":
 
 from agent.clients.openai_client import get_openai_client
 from agent.planner.core import create_search_plan
-from config.logging_config import get_logger
+from config.logging_config import configure_logging, get_logger
 from services.fetch.reddit_fetcher import run_reddit_fetcher
 from services.synthesizer.config import EvidenceOutputConfig
 from common.exceptions import ExternalServiceError
@@ -33,6 +34,8 @@ from services.context_builder.config import ContextBuilderConfig
 
 logger = get_logger(__name__)
 app = typer.Typer(add_completion=False)
+
+configure_logging()
 
 def _sanitize_label(label: str) -> str:
     cleaned = label.strip().replace(" ", "-")
@@ -70,8 +73,6 @@ def _build_context_builder_config(cfg: dict[str, Any]) -> ContextBuilderConfig:
 def _build_curator_config(cfg: dict[str, Any]) -> EvidenceOutputConfig:
     return EvidenceOutputConfig(
         summary_char_budget=cfg["summary_char_budget"],
-        max_highlights=cfg["max_highlights"],
-        max_cautions=cfg["max_cautions"],
     )
 
 
@@ -153,12 +154,11 @@ def main(
     queries = _resolve_queries(cfg, query)
     selector_cfg = _build_context_builder_config(cfg)
     curator_cfg = _build_curator_config(cfg)
-    openai_env = cfg.get("openai_environment", "openai-dev")
     planner_model = cfg.get("planner_model", "gpt-4.1-mini")
     summarizer_model = cfg.get("summarizer_model", "gpt-4.1-mini")
     post_limit = cfg.get("post_limit", 10)
     prompt_version = cfg.get("prompt_version", "v3")
-    client = get_openai_client(environment=openai_env)
+    client = get_openai_client()
     llm_client = OpenAILLMClient(client=client, model=summarizer_model)
 
     logger.info(
@@ -189,18 +189,16 @@ def main(
             plan = create_search_plan(query_text, model=planner_model)
             planner_ms = int((time.perf_counter() - planner_start) * 1000)
             logger.info(
-                "SearchPlan created [plan_id=%s, query=%r, search_terms=%s, subreddits=%s, notes=%r]",
+                "SearchPlan created [plan_id=%s, query=%r, search_terms=%s, subreddits=%s]",
                 plan.plan_id,
                 plan.query,
                 plan.search_terms,
                 plan.subreddits,
-                plan.notes[:300] if plan.notes else "",
             )
             record["plan"] = {
                 "plan_id": str(plan.plan_id),
                 "search_terms": plan.search_terms,
                 "subreddits": plan.subreddits,
-                "reasoning": plan.notes,
             }
 
         except Exception as exc:
@@ -215,10 +213,10 @@ def main(
 
         try:
             fetch_start = time.perf_counter()
-            fetch_result = run_reddit_fetcher(
+            fetch_result = asyncio.run(run_reddit_fetcher(
                 plan=plan,
                 post_limit=post_limit,
-            )
+            ))
             fetch_ms = int((time.perf_counter() - fetch_start) * 1000)
             top3 = sorted(fetch_result.posts, key=lambda p: p.relevance_score, reverse=True)[:3]
             logger.info(
@@ -267,7 +265,6 @@ def main(
                     "meta": {
                         "model": summarizer_model,
                         "prompt_version": prompt_version,
-                        "openai_environment": openai_env,
                         "post_limit": post_limit,
                     **counts,
                     "timing_ms": {

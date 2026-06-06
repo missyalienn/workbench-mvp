@@ -1,12 +1,12 @@
 # Evidence preview configuration.
 
 queries:
+  - "how to hang floating shelves"
   - "how to caulk a bathtub"
   - "how to bleed a radiator"
 
 # Optional extra queries (uncomment to enable):
 # - "how to repair holes in drywall"
-# - "how to hang floating wall shelves"
 # - "how to remove scratches from wood table"
 # - "how to fix a broken light fixture"
 # - "how to touch up chipped wall paint"
@@ -17,7 +17,6 @@ prompt_version: "v3"
 
 post_limit: 10
 
-openai_environment: "openai-dev"
 planner_model: "gpt-4.1-mini"
 summarizer_model: "gpt-4.1-mini"
 
@@ -27,8 +26,6 @@ max_post_chars: 1200
 max_comment_chars: 400
 
 summary_char_budget: 900
-max_highlights: 6
-max_cautions: 5
 
 # Optional: if omitted, a timestamped filename is generated.
 # output_filename: "evidence_preview_example.json"

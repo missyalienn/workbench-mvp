@@ -27,6 +27,114 @@ class Settings(BaseSettings):
         description="Log output: 'text' or 'json'",
     )
 
+    # API Runtime Controls
+    LIVE_RUNS_ENABLED: bool = Field(
+        True,
+        validation_alias="LIVE_RUNS_ENABLED",
+        description="Allow live pipeline execution for POST /api/run requests",
+    )
+    ALLOWED_ORIGIN: str = Field(
+        "http://localhost:5173",
+        validation_alias="ALLOWED_ORIGIN",
+        description="Allowed browser origin for CORS",
+    )
+
+    # OpenAI Authentication
+    OPENAI_USE_KEYCHAIN: bool = Field(
+        True,
+        validation_alias="OPENAI_USE_KEYCHAIN",
+        description="Use system keychain for OpenAI credentials instead of env vars",
+    )
+    OPENAI_API_KEY: str | None = Field(
+        None,
+        validation_alias="OPENAI_API_KEY",
+        description="OpenAI API key used when keychain auth is disabled",
+    )
+    OPENAI_API_KEY_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="OPENAI_API_KEY_SSM_PARAMETER",
+        description="SSM parameter name for the OpenAI API key in production",
+    )
+    OPENAI_KEYCHAIN_SERVICE: str = Field(
+        "openai-key",
+        validation_alias="OPENAI_KEYCHAIN_SERVICE",
+        description="Keychain service name for the OpenAI API key",
+    )
+    OPENAI_KEYCHAIN_LABEL: str = Field(
+        "openai-dev",
+        validation_alias="OPENAI_KEYCHAIN_LABEL",
+        description="Keychain label for the OpenAI API key",
+    )
+
+    # Reddit Authentication
+    REDDIT_USE_KEYCHAIN: bool = Field(
+        True,
+        validation_alias="REDDIT_USE_KEYCHAIN",
+        description="Use system keychain for Reddit credentials instead of env vars",
+    )
+    REDDIT_CLIENT_ID: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_ID",
+        description="Reddit client ID used when keychain auth is disabled",
+    )
+    REDDIT_CLIENT_ID_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_ID_SSM_PARAMETER",
+        description="SSM parameter name for the Reddit client ID in production",
+    )
+    REDDIT_CLIENT_SECRET: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_SECRET",
+        description="Reddit client secret used when keychain auth is disabled",
+    )
+    REDDIT_CLIENT_SECRET_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="REDDIT_CLIENT_SECRET_SSM_PARAMETER",
+        description="SSM parameter name for the Reddit client secret in production",
+    )
+    REDDIT_USER_AGENT: str = Field(
+        "Workbench/1.0 by /u/chippetto90",
+        validation_alias="REDDIT_USER_AGENT",
+        description="User-Agent header for Reddit API requests",
+    )
+    REDDIT_USER_AGENT_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="REDDIT_USER_AGENT_SSM_PARAMETER",
+        description="SSM parameter name for the Reddit user agent in production",
+    )
+    REDDIT_CLIENT_ID_SERVICE: str = Field(
+        "reddit-client-id",
+        validation_alias="REDDIT_CLIENT_ID_SERVICE",
+        description="Keychain service name for the Reddit client ID",
+    )
+    REDDIT_CLIENT_SECRET_SERVICE: str = Field(
+        "reddit-client-secret",
+        validation_alias="REDDIT_CLIENT_SECRET_SERVICE",
+        description="Keychain service name for the Reddit client secret",
+    )
+    REDDIT_USER_AGENT_SERVICE: str = Field(
+        "reddit-user-agent",
+        validation_alias="REDDIT_USER_AGENT_SERVICE",
+        description="Keychain service name for the Reddit user agent",
+    )
+    REDDIT_KEYCHAIN_LABEL: str = Field(
+        "reddit-dev",
+        validation_alias="REDDIT_KEYCHAIN_LABEL",
+        description="Keychain label for Reddit credentials",
+    )
+
+    # Internal Proxy Authentication
+    PROXY_TOKEN: str | None = Field(
+        None,
+        validation_alias="PROXY_TOKEN",
+        description="Shared token used to authorize server-side proxy requests",
+    )
+    PROXY_TOKEN_SSM_PARAMETER: str | None = Field(
+        None,
+        validation_alias="PROXY_TOKEN_SSM_PARAMETER",
+        description="SSM parameter name for the shared proxy token in production",
+    )
+
     # HTTP Retry Defaults
     RETRY_MAX_ATTEMPTS: int = Field(
         3,
@@ -45,7 +153,7 @@ class Settings(BaseSettings):
     )    
   
 
-    # Agent Planner Defaults
+    # Planner Agent Defaults
     ALLOWED_SUBREDDITS: list[str] = [
         "diy",
         "homeimprovement",
@@ -63,9 +171,6 @@ class Settings(BaseSettings):
     MAX_SUBREDDITS: int = 3
     MAX_SEARCH_TERMS: int = 5
 
-    #Multithreading Configuration
-    FETCHER_MAX_WORKERS: int = 3
-    FETCHER_ENABLE_CONCURRENCY: bool = True
     FETCHER_MAX_COMMENTS_PER_POST: int = Field(
         5,
         validation_alias="FETCHER_MAX_COMMENTS_PER_POST",
@@ -90,7 +195,7 @@ class Settings(BaseSettings):
     EMBEDDING_CACHE_PATH: str = Field(
         "data/embedding_cache.sqlite3",
         validation_alias="EMBEDDING_CACHE_PATH",
-        description="SQLite path for embedding cache",
+        description="SQLite path for embedding cache; use a writable path such as /tmp/... in Lambda",
     )
     MAX_EMBED_TEXT_CHARS: int = Field(
         4000,

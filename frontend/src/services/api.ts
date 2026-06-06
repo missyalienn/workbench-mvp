@@ -1,16 +1,16 @@
-import type { DemoApiResponse, ApiError } from "../types/api";
+import type { ApiResponse, ApiError } from "../types/api";
 
-const DEMO_ENDPOINT_URL = "http://localhost:8000/api/run";
+const DEMO_ENDPOINT_PATH = "/api/run";
 const TIMEOUT_MS = 60000;
 
 export async function submitDemoQuery(
   query: string
-): Promise<{ response?: DemoApiResponse; error?: ApiError }> {
+): Promise<{ response?: ApiResponse; error?: ApiError }> {
   const requestAbortController = new AbortController();
   const requestTimeoutId = setTimeout(() => requestAbortController.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(DEMO_ENDPOINT_URL, {
+    const response = await fetch(DEMO_ENDPOINT_PATH, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,6 +30,16 @@ export async function submitDemoQuery(
       };
     }
 
+    if (response.status === 422) {
+      const body = await response.json().catch(() => null);
+      return {
+        error: {
+          type: "server",
+          message: body?.detail ?? "That doesn't look like a searchable topic. Try a question or subject you'd like to research.",
+        },
+      };
+    }
+
     if (!response.ok) {
       return {
         error: {
@@ -39,7 +49,7 @@ export async function submitDemoQuery(
       };
     }
 
-    const apiResponse: DemoApiResponse = await response.json();
+    const apiResponse: ApiResponse = await response.json();
     return { response: apiResponse };
   } catch (error) {
     clearTimeout(requestTimeoutId);

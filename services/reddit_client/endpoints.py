@@ -2,16 +2,15 @@
 
 Retry policy: transient failures (timeouts, connection errors, 429, 5xx) are
 retried automatically via `_reddit_retry`. Non-retryable HTTP errors (4xx other
-than 429) are re-raised immediately as `requests.exceptions.HTTPError`.
+than 429) are re-raised immediately as `httpx.HTTPStatusError`.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 from typing import Any
 
-import requests
-from requests import Session
+import httpx
 
 from services.http.retry_policy import build_retry
 
@@ -21,11 +20,10 @@ COMMENTS_PATH_TEMPLATE = "/comments/{post_id}"
 
 def _is_retryable_request(exc: Exception) -> bool:
     """Return True for transient request failures that warrant a retry."""
-    if isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)):
+    if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
         return True
-    if isinstance(exc, requests.exceptions.HTTPError):
-        status = exc.response.status_code if exc.response is not None else None
-        return status in (429, 500, 502, 503, 504)
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in (429, 500, 502, 503, 504)
     return False
 
 
@@ -33,8 +31,8 @@ _reddit_retry = build_retry(is_retryable=_is_retryable_request)
 
 
 @_reddit_retry
-def search_subreddit(
-    session: Session,
+async def search_subreddit(
+    client: httpx.AsyncClient,
     *,
     subreddit: str,
     query: str,
@@ -52,7 +50,7 @@ def search_subreddit(
     if after:
         params["after"] = after
 
-    response = session.get(
+    response = await client.get(
         f"https://oauth.reddit.com{SEARCH_PATH_TEMPLATE.format(subreddit=subreddit)}",
         params=params,
         timeout=10,
@@ -61,20 +59,20 @@ def search_subreddit(
     return response.json()
 
 
-def paginate_search(
-    session: Session,
+async def paginate_search(
+    client: httpx.AsyncClient,
     *,
     subreddit: str,
     query: str,
     limit: int,
-) -> Iterator[dict[str, Any]]:
+) -> AsyncIterator[dict[str, Any]]:
     """Yield raw post dicts by walking the search listing."""
     remaining = max(limit, 0)
     after: str | None = None
     while remaining > 0:
         page_limit = min(remaining, 25)
-        payload = search_subreddit(
-            session,
+        payload = await search_subreddit(
+            client,
             subreddit=subreddit,
             query=query,
             limit=page_limit,
@@ -94,8 +92,8 @@ def paginate_search(
 
 
 @_reddit_retry
-def fetch_comments(
-    session: Session,
+async def fetch_comments(
+    client: httpx.AsyncClient,
     *,
     post_id: str,
     limit: int = 50,
@@ -103,7 +101,7 @@ def fetch_comments(
     """Fetch top-level comments for a submission."""
     params = {"limit": limit, "depth": 1, "sort": "top"}
 
-    response = session.get(
+    response = await client.get(
         f"https://oauth.reddit.com{COMMENTS_PATH_TEMPLATE.format(post_id=post_id)}",
         params=params,
         timeout=10,

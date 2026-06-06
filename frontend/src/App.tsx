@@ -1,51 +1,27 @@
 import { useState } from "react";
-import type { ThreadEvidence } from "./types/api";
+import type { WorkbenchResult } from "./components/app/types";
 import { submitDemoQuery } from "./services/api";
-import type { WorkbenchResult } from "./components/WorkbenchLanding";
-import { WorkbenchLanding } from "./components/WorkbenchLanding";
+import { WorkbenchApp } from "./components/WorkbenchApp";
 
 function App() {
-  const sampleThreads: ThreadEvidence[] = [
-    {
-      rank: 1,
-      post_id: "abc123",
-      title: "Best caulk for a bathtub and tips to avoid mold?",
-      subreddit: "homeimprovement",
-      url: "https://www.reddit.com/r/homeimprovement/",
-      relevance_score: 0.92,
-    },
-    {
-      rank: 2,
-      post_id: "def456",
-      title: "How to remove old caulk cleanly before re-caulking",
-      subreddit: "diy",
-      url: "https://www.reddit.com/r/diy/",
-      relevance_score: 0.84,
-    },
-  ];
-  const initialResults: WorkbenchResult[] = sampleThreads.map((thread) => ({
-    rank: thread.rank,
-    subreddit: thread.subreddit,
-    title: thread.title,
-    link: thread.url,
-    comments: 0,
-    upvotes: 0,
-    relevance: Number.isFinite(thread.relevance_score)
-      ? Math.round(thread.relevance_score * 100)
-      : 0,
-  }));
-
-  const [results, setResults] = useState<WorkbenchResult[]>(initialResults);
+  const [results, setResults] = useState<WorkbenchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [limitations, setLimitations] = useState<string[]>([]);
 
   const handleSearch = async (query: string) => {
     setIsLoading(true);
     setErrorMessage(null);
+    setResults([]);
+    setSummary(null);
+    setLimitations([]);
 
     const { response, error } = await submitDemoQuery(query);
     if (error) {
       setResults([]);
+      setSummary(null);
+      setLimitations([]);
       setErrorMessage(error.message);
       setIsLoading(false);
       return;
@@ -53,33 +29,37 @@ function App() {
 
     if (!response) {
       setResults([]);
+      setSummary(null);
+      setLimitations([]);
       setErrorMessage("No response received.");
       setIsLoading(false);
       return;
     }
 
-    const threads = response.evidence_result?.threads ?? [];
+    const threads = response.threads ?? [];
     const mappedResults: WorkbenchResult[] = threads.map((thread) => ({
       rank: thread.rank,
       subreddit: thread.subreddit,
       title: thread.title,
       link: thread.url,
-      comments: 0,
-      upvotes: 0,
-      relevance: Number.isFinite(thread.relevance_score)
-        ? Math.round(thread.relevance_score * 100)
-        : 0,
+      comments: thread.num_comments,
+      upvotes: thread.post_karma,
+      relevance: Math.round(thread.relevance_score * 100),
     }));
 
     setResults(mappedResults);
+    setSummary(response.summary ?? null);
+    setLimitations(response.limitations ?? []);
     setIsLoading(false);
   };
 
   return (
-    <WorkbenchLanding
+    <WorkbenchApp
       results={results}
       isLoading={isLoading}
       errorMessage={errorMessage}
+      summary={summary}
+      limitations={limitations}
       onSearch={handleSearch}
       onHowItWorksClick={() => {}}
     />

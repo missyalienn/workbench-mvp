@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.types import PositiveInt
 
 class PostPayload(BaseModel):
@@ -48,35 +48,20 @@ class EvidenceRequest(BaseModel):
     max_post_chars: PositiveInt = Field(..., description="Max characters allocated to each post body excerpt")
     max_comment_chars: PositiveInt = Field(..., description="Max characters allocated to each comment excerpt")
     summary_char_budget: PositiveInt = Field(..., description="Max characters allowed in the generated summary")
-    max_highlights: PositiveInt = Field(..., description="Max number of highlight bullets permitted")
-    max_cautions: PositiveInt = Field(..., description="Max number of caution bullets permitted")
-
-
-class ThreadEvidence(BaseModel):
-    """Ranked Reddit thread selected as evidence for the user's query."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    rank: int = Field(..., description="Rank of the thread in the curation result")
-    post_id: str = Field(..., description="Reddit post ID backing this claim")
-    title: str = Field(..., description="Reddit post title")
-    subreddit: str = Field(..., description="Result subreddit")
-    url: str = Field(..., description="Canonical Reddit permalink")
-    relevance_score: float = Field(..., description="Fetcher-assigned relevance score")
 
 
 class EvidenceResult(BaseModel):
-    """Evidence-first research payload listing the most relevant threads."""
+    """Structured synthesis output returned by the curator LLM."""
 
     model_config = ConfigDict(extra="forbid")
 
-    status: Literal["ok", "partial", "error"] = Field(
+    status: Literal["ok", "partial", "insufficient"] = Field(
         ...,
-        description="Overall health of the curation attempt",
+        description="Overall quality of the evidence found",
     )
-    threads: list[ThreadEvidence] = Field(
+    summary: str = Field(
         ...,
-        description="Ranked Reddit threads selected for the query",
+        description="1-2 sentence synthesis of what the evidence says about the query",
     )
     limitations: list[str] = Field(
         ...,
@@ -87,4 +72,11 @@ class EvidenceResult(BaseModel):
         description="Prompt template version used for this run",
     )
 
-__all__ = ["PostPayload", "EvidenceRequest", "ThreadEvidence", "EvidenceResult"]
+    @field_validator("limitations", mode="before")
+    @classmethod
+    def _limit_limitations(cls, value: object) -> object:
+        if isinstance(value, list):
+            return value[:2]
+        return value
+
+__all__ = ["PostPayload", "EvidenceRequest", "EvidenceResult"]

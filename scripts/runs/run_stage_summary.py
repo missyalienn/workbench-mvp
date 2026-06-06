@@ -8,6 +8,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import time
@@ -23,7 +24,7 @@ if __package__ is None or __package__ == "":
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
-from config.logging_config import get_logger
+from config.logging_config import configure_logging, get_logger
 from api.pipeline import _run_pipeline
 from services.synthesizer.stage_summary import (
     build_stage_diagnostics,
@@ -34,6 +35,8 @@ from services.synthesizer.stage_summary import (
 
 logger = get_logger(__name__)
 app = typer.Typer(add_completion=False)
+
+configure_logging()
 
 
 def _sanitize_label(label: str) -> str:
@@ -85,7 +88,7 @@ def main(
 
     payload: list[dict[str, Any]] = []
     for query_text in queries:
-        plan, fetch_result, request, result = _run_pipeline(query_text, config)
+        plan, fetch_result, request, result = asyncio.run(_run_pipeline(query_text, config))
         fetch_result_summary = summarize_fetch_result(fetch_result)
         llm_context_summary = summarize_llm_context(request)
         evidence_result_summary = summarize_evidence_result(result)
@@ -99,7 +102,6 @@ def main(
             "search_plan": {
                 "search_terms": plan.search_terms,
                 "subreddits": plan.subreddits,
-                "notes": plan.notes,
             },
             "fetch_result_summary": fetch_result_summary,
             "llm_context_summary": llm_context_summary,
