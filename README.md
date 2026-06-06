@@ -1,59 +1,110 @@
-## Workbench
+# Workbench
 
-**Workbench** is a research agent that takes a research task and returns grounded findings — ranked evidence from primary sources, structured limitations, and citations that let you verify claims directly.
+Workbench is an agentic research and due diligence system that converts an open-ended question into a structured retrieval workflow. Given a query, it generates a search plan, gathers relevant source material, ranks the results, and returns a structured research output with linked source results, summary context, relevance signals, and stated limitations.
 
-The architecture is source-agnostic: the core pipeline is independent of any specific data source or domain. The current implementation uses Reddit as a data source applied to DIY and home improvement queries.
+The system is organized as a multi-stage application with distinct layers for planning, retrieval, result ranking, and structured response generation. The current production deployment exercises a scoped retrieval pipeline, while the broader architecture is designed to support additional sources and more flexible orchestration over time.
 
----
+## What It Does
 
-## How It Works
+For each user query, Workbench:
 
-Workbench follows a structured evidence pipeline:
+1. Interprets the request and generates a search plan
+2. Executes a retrieval pipeline against an external source
+3. Scores, ranks, and normalizes the returned results
+4. Returns a structured output containing:
+   - search plan metadata
+   - run status
+   - a concise summary
+   - ranked source results with direct links
+   - selected source metadata, including engagement and relevance signals
+   - explicit limitations
 
-1. **Planner** generates a structured search plan from the user query.
-2. **Evidence retrieval** gathers and validates candidate items from a data source.
-3. **Semantic ranking** scores candidates by embedding similarity against the query; falls back to signal-based ordering on failure.
-4. **Context building** selects top evidence and assembles an LLM-ready request with source attribution.
-5. **LLM execution** returns structured evidence output with ranked sources and limitations.
+## Architecture
 
----
+Workbench is organized into a small set of clear layers:
 
-## Output Contract
+- `frontend/`
+  - User-facing application for query submission and results display
 
-The system returns a structured **EvidenceResult**:
-- `status`: research quality signal (`ok | partial | error`) — reflects evidence sufficiency, not system health
-- `threads`: ranked evidence items with source URLs
-- `limitations`: coverage or relevance caveats
-- `prompt_version`: prompt template version used for this run
+- `api/`
+  - Request handling, pipeline entrypoints, typed response models, and error boundaries
 
----
+- `agent/`
+  - Planning and orchestration logic that decomposes user requests into retrieval and response-generation steps
 
-## Project Structure
+- `services/`
+  - Retrieval clients, source normalization, ranking, and structured result generation
 
-- **`agent/planner/`** – Query planning logic and models.
-- **`services/fetch/`** – Evidence collection, filtering, and validation.
-- **`services/embedding/`** – Semantic ranking via OpenAI embeddings with SQLite cache.
-- **`services/context_builder/`** – Evidence selection and LLM context assembly.
-- **`services/synthesizer/`** – Prompt building, LLM execution, and output contracts.
-- **`api/`** – FastAPI app and pipeline orchestration.
-- **`frontend/`** – React demo UI.
-- **`scripts/`** – CLI pipeline preview and eval tools.
-- **`docs/`** – Architecture notes and design docs.
+- `config/`
+  - Runtime settings and deployment configuration
 
----
+This separation keeps the application boundary, orchestration logic, source integration, and UI concerns isolated.
 
-## Current Capabilities
+## Technical Focus
 
-- Modular evidence pipeline with isolated planning, retrieval, validation, and selection layers.
-- Semantic ranking via embedding similarity with graceful fallback to signal-based ordering.
-- Structured output contract with ranked sources and evidence quality signaling.
-- FastAPI backend with a React frontend demo.
+This project emphasizes:
 
----
+- agentic workflow orchestration around LLM behavior
+- typed interfaces between application layers
+- retrieval, ranking, and structured result generation as separate responsibilities
+- production-minded API, configuration, and deployment concerns
+- testable backend services rather than notebook-style flows
 
-## Upcoming Work
+## Current Production Scope
 
-- Multi-source evidence retrieval.
-- Production-grade error handling at the API boundary.
-- Embedding call batching to reduce per-request latency.
-- Deployment preparation.
+Workbench is designed with separable planning, retrieval, ranking, and response-generation layers. The current production deployment exercises one active retrieval pipeline and one frontend application surface.
+
+That means the architecture is broader than the currently deployed scope. Today, the live system is centered on a single source-specific retrieval path, but it is structured so additional retrieval adapters and richer orchestration paths can be introduced without changing the overall product shape.
+
+## Deployment
+
+The current production deployment includes:
+
+- a hosted frontend application
+- a backend execution path for the retrieval workflow
+- environment-aware runtime configuration for deployed execution
+- structured API responses for downstream rendering
+
+Recent production work focused on deployment configuration, async pipeline support, API hardening, and frontend integration for hosted use.
+
+## Local Development
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20+
+- `uv` for Python dependency management
+
+### Backend
+
+```bash
+uv sync
+uv run uvicorn api.app:app --reload
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Testing
+
+```bash
+uv run pytest
+```
+
+## Why This Project
+
+Workbench is an exercise in building AI systems as software systems:
+
+- turning ambiguous research questions into explicit workflow stages
+- separating planning, retrieval, ranking, and response construction concerns
+- enforcing application contracts around LLM-driven components
+- moving from prototype workflows toward production deployment
+
+## Status
+
+Workbench is live in production in its current scoped form. Ongoing work is focused on expanding retrieval coverage, improving ranking quality, and adapting and hardening the system for both SMB and enterprise client use cases.
