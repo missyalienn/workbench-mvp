@@ -21,6 +21,7 @@ export function AppSearchForm({
   onQueryChange,
   onSubmit,
 }: AppSearchFormProps) {
+  const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useLayoutEffect(() => {
@@ -36,6 +37,7 @@ export function AppSearchForm({
 
   return (
     <form
+      ref={formRef}
       onSubmit={onSubmit}
       className="mx-auto w-full max-w-2xl"
     >
@@ -45,6 +47,14 @@ export function AppSearchForm({
             ref={textareaRef}
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.shiftKey) {
+                return;
+              }
+
+              event.preventDefault();
+              formRef.current?.requestSubmit();
+            }}
             aria-label="Search query"
             placeholder="What are you working on?"
             rows={1}
