@@ -76,32 +76,33 @@ export function WorkbenchApp({
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f7f5] text-[#1e1b4b]">
+    <main className="min-h-screen bg-[#f5f5f4] text-[#292524]">
       <div className="mx-auto flex max-w-5xl flex-col gap-12 px-6 pb-14 pt-16">
         <header className="flex items-center justify-between border-b border-[#e7e5e4] pb-4">
-          <span className="text-[17px] font-medium leading-none tracking-tight text-[#1e1b4b]">Workbench</span>
+          <span className="text-[17px] font-medium leading-none tracking-tight text-[#292524]">Workbench</span>
         </header>
 
         <section className="px-2 text-center">
-          <TypographyH1 className="mb-4 text-balance text-4xl font-bold leading-tight text-[#262162] md:text-5xl">
-            Research agent that shows its work.
-
+          <p className="mb-4 text-sm font-medium uppercase tracking-[0.18em] text-[#78716c]">
+            Skip the scrolling.
+          </p>
+          <TypographyH1 className="mb-4 text-balance text-4xl font-bold leading-tight text-[#292524] md:text-5xl">
+            Get the best DIY advice from Reddit, and get it done.
           </TypographyH1>
           <p
-            className={`mx-auto max-w-2xl text-pretty text-base font-normal leading-relaxed text-[#62627a] md:max-w-4xl md:text-lg ${
-              isIdleState ? "mb-14" : "mb-10"
+            className={`mx-auto max-w-2xl text-pretty text-base font-normal leading-relaxed text-[#57534e] md:max-w-4xl md:text-lg ${
+              isIdleState ? "mb-20" : "mb-14"
             }`}
           >
-            Multi-agent research workflow that delivers structured findings. Limitations and sources included.
-
+            Less researching, more doing.
           </p>
           <AppSearchForm
             query={query}
             onQueryChange={setQuery}
             onSubmit={handleSubmit}
           />
-          <p className="mt-3 px-1 text-sm font-medium text-[#78788f]">
-            Demo is currently scoped to DIY and home improvement communities on Reddit.
+          <p className="mt-3 px-1 text-sm font-medium text-[#78716c]">
+            Currently scoped to DIY and home improvement communities on Reddit. More topics coming soon.
           </p>
         </section>
 
@@ -123,49 +124,23 @@ export function WorkbenchApp({
 
         {!isIdleState ? (
           <section className="mx-auto -mt-6 w-full max-w-5xl">
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="space-y-5">
-                {SHOW_SUMMARY_LAYOUT && !isLoading && !errorMessage && summary ? (
-                  <div>
-                    <p className="mb-3 px-1 text-sm text-[#8f8faa]">Synthesis</p>
-                    <Card className="rounded-2xl border border-[#e7e5e4] bg-white shadow-sm">
-                      <CardContent className="px-5 py-4">
-                        <p className="text-[15px] leading-7 text-[#3f3f5c] md:text-base">
-                          {summary}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ) : null}
-
-                {SHOW_SUMMARY_LAYOUT && !isLoading && !errorMessage && limitations.length > 0 ? (
-                  <div>
-                    <p className="mb-3 px-1 text-sm text-[#8f8faa]">Limitations</p>
-                    <Card className="rounded-2xl border border-[#eadfd0] bg-[#fcfaf6] shadow-sm">
-                      <CardContent className="px-5 py-4">
-                        <ul className="space-y-2 text-sm leading-6 text-[#5b5b73]">
-                          {limitations.map((item) => (
-                            <li
-                              key={item}
-                              className="flex gap-2"
-                            >
-                              <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#b8a78d]" />
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ) : null}
+            {submittedQuery ? (
+              <div className="mb-6 px-1">
+                <p className="text-sm leading-6 text-[#57534e] md:text-base">
+                  Results for{" "}
+                  <span className="font-medium text-[#292524]">
+                    "{submittedQuery}"
+                  </span>
+                </p>
               </div>
-
+            ) : null}
+            <div className="grid gap-5 md:grid-cols-2">
               {results.length === 0 ? null : (
                 <div>
-                  <p className="mb-3 px-1 text-sm text-[#8f8faa]">
-                    {submittedQuery ? "Sources" : "Sources"}
+                  <p className="mb-3 px-1 text-sm text-[#78716c]">
+                    Relevant threads
                   </p>
-                  <Card className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-white shadow-sm">
+                  <Card className="overflow-hidden rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] shadow-sm">
                     <CardContent className="p-0">
                       <ol className="divide-y divide-[#e7e5e4]">
                         {results.map((result) => (
@@ -180,6 +155,42 @@ export function WorkbenchApp({
                 </div>
               )}
 
+              <div className="space-y-5">
+                {SHOW_SUMMARY_LAYOUT && !isLoading && !errorMessage && summary ? (
+                  <div>
+                    <p className="mb-3 px-1 text-sm text-[#78716c]">Overview</p>
+                    <Card className="rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] shadow-sm">
+                      <CardContent className="px-5 py-4">
+                        <p className="text-[15px] leading-7 text-[#57534e] md:text-base">
+                          {summary}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : null}
+
+                {SHOW_SUMMARY_LAYOUT && !isLoading && !errorMessage && limitations.length > 0 ? (
+                  <div>
+                    <p className="mb-3 px-1 text-sm text-[#78716c]">Considerations</p>
+                    <Card className="rounded-2xl border border-[#e7e5e4] bg-[#fafaf9] shadow-sm">
+                      <CardContent className="px-5 py-4">
+                        <ul className="space-y-2 text-sm leading-6 text-[#57534e]">
+                          {limitations.map((item) => (
+                            <li
+                              key={item}
+                              className="flex gap-2"
+                            >
+                              <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#78716c]" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : null}
+              </div>
+
             </div>
           </section>
         ) : null}
@@ -191,8 +202,11 @@ export function WorkbenchApp({
           onImpression={handleHowItWorksImpression}
         />
 
-        <footer className="border-t border-[#e7e5e4] pt-6 text-sm text-[#a8a29e]">
-          Workbench — Research agent that shows its work.
+        <footer className="border-t border-[#e7e5e4] pt-6">
+          <p className="text-sm font-medium text-[#292524]">Workbench</p>
+          <p className="mt-8 text-xs text-[#78716c]">
+            Built by a software engineer and woodworker who got tired of losing hours on DIY subreddits.
+          </p>
         </footer>
       </div>
     </main>

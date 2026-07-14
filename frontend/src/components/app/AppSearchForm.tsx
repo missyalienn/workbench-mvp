@@ -4,10 +4,11 @@
  * Usage:
  * <AppSearchForm query={query} onQueryChange={setQuery} onSubmit={handleSubmit} />
  */
-import { Search, SendHorizontal } from "lucide-react";
+import { useLayoutEffect, useRef } from "react";
+
+import { SendHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 interface AppSearchFormProps {
   query: string;
@@ -20,30 +21,54 @@ export function AppSearchForm({
   onQueryChange,
   onSubmit,
 }: AppSearchFormProps) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    // Grow with the query while keeping a compact default height.
+    textarea.style.height = "0px";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [query]);
+
   return (
-    <form onSubmit={onSubmit}>
-      <div className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-[20px] border border-[#d0d0de] bg-[#fbfbfc] px-2 py-1 text-[#262162] shadow-sm transition-all duration-300 focus-within:border-[#262162] focus-within:ring-2 focus-within:ring-[#b9b9da] md:max-w-xl">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#262162] shadow-sm">
-          <Search className="h-5 w-5" />
-        </span>
-        <Input
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Start with a topic or question"
-          className="h-10 flex-1 border-0 bg-transparent px-1 text-base text-[#262162] placeholder:text-[#8f8faa] focus-visible:ring-0 focus-visible:ring-offset-0 md:text-lg"
-        />
-        <Button
-          type="submit"
-          size="icon"
-          variant="ghost"
-          className="h-10 w-10 rounded-full bg-white p-0 shadow-sm hover:bg-[#f2f2f7]"
-          aria-label="Search"
-        >
-          <SendHorizontal
-            className="h-5 w-5 text-[#262162]"
-            aria-hidden="true"
+    <form
+      onSubmit={onSubmit}
+      className="mx-auto w-full max-w-2xl"
+    >
+      <div className="mx-auto flex w-full flex-col gap-4 rounded-[26px] border border-[#e7e5e4] bg-[#fafaf9] px-5 py-5 text-[#292524] shadow-[0_8px_24px_rgba(41,37,36,0.06)] transition-all duration-300 focus-within:border-[#78716c] focus-within:ring-2 focus-within:ring-[#e7e5e4] md:px-6 md:py-5">
+        <div className="flex items-start">
+          <textarea
+            ref={textareaRef}
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            aria-label="Search query"
+            placeholder="What are you working on?"
+            rows={1}
+            className="min-h-[28px] max-h-[240px] flex-1 resize-none overflow-y-auto border-0 bg-transparent p-0 text-[15px] leading-7 text-[#292524] outline-none placeholder:text-[#78716c] focus-visible:ring-0 focus-visible:ring-offset-0 md:text-base"
           />
-        </Button>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            size="icon"
+            variant="ghost"
+            className={`h-10 w-10 rounded-full p-0 shadow-sm transition-colors ${
+              query.trim()
+                ? "bg-[#292524] text-white hover:bg-[#44403c]"
+                : "bg-[#f5f5f4] text-[#78716c] hover:bg-[#e7e5e4]"
+            }`}
+            aria-label="Search"
+          >
+            <SendHorizontal
+              className="h-4.5 w-4.5"
+              aria-hidden="true"
+            />
+          </Button>
+        </div>
       </div>
     </form>
   );

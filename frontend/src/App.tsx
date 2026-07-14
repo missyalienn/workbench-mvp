@@ -42,8 +42,6 @@ function App() {
       subreddit: thread.subreddit,
       title: thread.title,
       link: thread.url,
-      comments: thread.num_comments,
-      upvotes: thread.post_karma,
       relevance: Math.round(thread.relevance_score * 100),
     }));
 
