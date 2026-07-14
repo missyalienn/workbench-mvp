@@ -17,10 +17,9 @@ interface HowItWorksSectionProps {
 }
 
 const HOW_IT_WORKS_STEPS = [
-  { title: "Planner Agent", description: "Decomposes your question into targeted search queries" },
-  { title: "Retriever Agent", description: "Retrieves relevant threads and top comments" },
-  { title: "Ranker Agent", description: "Ranks results by semantic relevance to your question" },
-  { title: "Synthesizer Agent", description: "Synthesizes key findings and surfaces original sources" },
+  "Ask a question.",
+  "Get key findings and relevant posts from DIY communities all over Reddit.",
+  "Dig in further and get it done.",
 ];
 
 export function HowItWorksSection({
@@ -32,13 +31,13 @@ export function HowItWorksSection({
   return (
     <section onMouseEnter={onImpression}>
       <div className="mb-4 flex items-center justify-center gap-2">
-        <TypographyH2 className="border-b-0 pb-0 text-[24px] text-[#262162] md:text-[28px]">
+        <TypographyH2 className="border-b-0 pb-0 text-[24px] text-[#292524] md:text-[28px]">
           How it works
         </TypographyH2>
         <button
           onClick={onToggle}
           aria-label={isOpen ? "Collapse how it works" : "Expand how it works"}
-          className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-[#8f8faa] transition-colors hover:bg-[#ebebf4] hover:text-[#262162]"
+          className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-[#78716c] transition-colors hover:bg-[#f5f5f4] hover:text-[#292524]"
         >
           <ChevronUp
             className="h-4 w-4 transition-transform duration-300"
@@ -51,27 +50,34 @@ export function HowItWorksSection({
         className="overflow-hidden transition-all duration-300 ease-in-out"
         style={{ maxHeight: isOpen ? "600px" : "0px", opacity: isOpen ? 1 : 0 }}
       >
-        <Card className="mx-auto max-w-2xl border-[#e7e5e4] bg-white shadow-sm">
+        <Card className="mx-auto max-w-2xl border-[#e7e5e4] bg-[#fafaf9] shadow-sm">
           <CardContent className="p-0">
             <div className="divide-y divide-[#e7e5e4]">
               {HOW_IT_WORKS_STEPS.map((step, index) => (
                 <div
-                  key={`${step.title}-${animationKey}`}
+                  key={`${step}-${animationKey}`}
                   className="relative flex items-start gap-4 px-5 py-4 md:px-6"
                   style={{
                     animation: isOpen ? "fadeSlideIn 400ms ease-out both" : "none",
                     animationDelay: `${index * 150}ms`,
                   }}
                 >
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#262162] text-[11px] font-semibold text-white">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#292524] text-[11px] font-semibold text-white">
                     {index + 1}
                   </span>
-                  <div>
-                    <p className="text-base font-semibold text-[#262162]">{step.title}</p>
-                    <p className="mt-0.5 text-[15px] leading-6 text-[#5b5b73]">{step.description}</p>
-                  </div>
+                  <p className="text-[15px] leading-6 text-[#57534e]">{step}</p>
                 </div>
               ))}
+            </div>
+            <div className="border-t border-[#e7e5e4] px-5 py-4 md:px-6">
+              <a
+                href="https://github.com/missyalienn/workbench-mvp"
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-[#57534e] underline-offset-4 transition-colors hover:text-[#292524] hover:underline"
+              >
+                View the architecture →
+              </a>
             </div>
           </CardContent>
         </Card>

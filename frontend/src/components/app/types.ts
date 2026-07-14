@@ -9,7 +9,5 @@ export interface WorkbenchResult {
   subreddit: string;
   title: string;
   link: string;
-  comments: number;
-  upvotes: number;
   relevance: number;
 }
