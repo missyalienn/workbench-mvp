@@ -47,14 +47,7 @@ export function WorkbenchApp({
     limitations.length === 0;
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [howItWorksOpen, setHowItWorksOpen] = useState(true);
-  const [howItWorksAnimKey, setHowItWorksAnimKey] = useState(0);
   const hasFiredHowItWorks = useRef(false);
-
-  const toggleHowItWorks = () => {
-    if (!howItWorksOpen) setHowItWorksAnimKey((k) => k + 1);
-    setHowItWorksOpen((prev) => !prev);
-  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -63,7 +56,6 @@ export function WorkbenchApp({
       return;
     }
     setSubmittedQuery(trimmedQuery);
-    setHowItWorksOpen(false);
     onSearch(trimmedQuery);
   };
 
@@ -87,14 +79,14 @@ export function WorkbenchApp({
             Skip the scrolling.
           </p>
           <TypographyH1 className="mb-4 text-balance text-4xl font-bold leading-tight text-[#292524] md:text-5xl">
-            Get the best DIY advice from Reddit, and get it done.
+            DIY know-how from people who've done it.
           </TypographyH1>
           <p
             className={`mx-auto max-w-2xl text-pretty text-base font-normal leading-relaxed text-[#57534e] md:max-w-4xl md:text-lg ${
               isIdleState ? "mb-20" : "mb-14"
             }`}
           >
-            Less researching, more doing.
+            Stop researching, start doing.
           </p>
           <AppSearchForm
             query={query}
@@ -102,7 +94,7 @@ export function WorkbenchApp({
             onSubmit={handleSubmit}
           />
           <p className="mt-3 px-1 text-sm font-medium text-[#78716c]">
-            Currently scoped to DIY and home improvement communities on Reddit. More topics coming soon.
+            Results currently sourced from DIY communities on Reddit.
           </p>
         </section>
 
@@ -196,17 +188,22 @@ export function WorkbenchApp({
         ) : null}
 
         <HowItWorksSection
-          isOpen={howItWorksOpen}
-          animationKey={howItWorksAnimKey}
-          onToggle={toggleHowItWorks}
           onImpression={handleHowItWorksImpression}
         />
 
         <footer className="border-t border-[#e7e5e4] pt-6">
           <p className="text-sm font-medium text-[#292524]">Workbench</p>
-          <p className="mt-8 text-xs text-[#78716c]">
+          <p className="mt-8 text-xs text-[#57534e]">
             Built by a software engineer and woodworker who got tired of losing hours on DIY subreddits.
           </p>
+          <a
+            href="https://github.com/missyalienn/workbench-mvp"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 inline-block text-xs font-medium text-[#78716c] underline-offset-4 transition-colors hover:text-[#57534e] hover:underline"
+          >
+            View on GitHub →
+          </a>
         </footer>
       </div>
     </main>
