@@ -84,6 +84,16 @@ When proposing changes:
 
 
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for missyalienn/workbench-mvp (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/` (created lazily). See `docs/agents/domain.md`.
+
 ## Do Not Touch
 
 `x_internal/` and `z_legacy/` — archived; excluded from pytest.
