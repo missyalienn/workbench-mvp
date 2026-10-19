@@ -237,3 +237,7 @@ z_archive/
 # Legacy sandbox (kept locally, untracked)
 z_legacy/
 .claude/
+
+# Agent skills installer artifacts
+.agents/
+skills-lock.json
