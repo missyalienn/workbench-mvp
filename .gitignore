@@ -241,3 +241,6 @@ z_legacy/
 # Agent skills installer artifacts
 .agents/
 skills-lock.json
+
+# Session handoff scratch file
+HANDOFF.md
